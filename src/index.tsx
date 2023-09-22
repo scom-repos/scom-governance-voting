@@ -21,6 +21,10 @@ const Theme = Styles.Theme.ThemeVars;
 
 interface ScomGovernanceVotingElement extends ControlElement {
     lazyLoad?: boolean;
+    chainId: number;
+    tokenFrom: string;
+    tokenTo: string;
+    votingAddress: string;
     networks: INetworkConfig[];
     wallets: IWalletPlugin[];
     defaultChainId?: number;
@@ -107,7 +111,7 @@ export default class GovernanceVoting extends Module {
         const lazyLoad = this.getAttribute('lazyLoad', true, false);
         if (!lazyLoad) {
             const defaultChainId = this.getAttribute('defaultChainId', true);
-			const chainId = this.getAttribute('chainId', true, defaultChainId || 0);
+            const chainId = this.getAttribute('chainId', true, defaultChainId || 0);
             const tokenFrom = this.getAttribute('tokenFrom', true, '');
             const tokenTo = this.getAttribute('tokenTo', true, '');
             const votingAddress = this.getAttribute('votingAddress', true, '');
@@ -132,7 +136,7 @@ export default class GovernanceVoting extends Module {
         this.isReadyCallbackQueued = false;
         this.executeReadyCallback();
     }
-    
+
     private _getActions(category?: string) {
         const actions: any[] = [];
         return actions;
