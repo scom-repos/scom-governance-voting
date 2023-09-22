@@ -111,7 +111,7 @@ function parseVotingExecuteParam(result: any) {
     return executeParam;
 }
 
-export async function getVotings(state: State, chainId: number, tokenA: ITokenObject, tokenB: ITokenObject) {
+export async function getVotingAddresses(state: State, chainId: number, tokenA: ITokenObject, tokenB: ITokenObject) {
     let addresses: string[] = [];
     try {
         const wallet = state.getRpcWallet();

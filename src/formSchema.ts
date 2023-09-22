@@ -2,7 +2,7 @@ import { ComboBox, IComboItem } from '@ijstech/components';
 import ScomNetworkPicker from '@scom/scom-network-picker';
 import ScomTokenInput from '@scom/scom-token-input';
 import { tokenStore } from '@scom/scom-token-list';
-import { getVotings } from './api';
+import { getVotingAddresses } from './api';
 import { comboBoxStyle } from './index.css';
 import { IGovernanceVoting } from './interface';
 import { State } from './store/index';
@@ -63,7 +63,7 @@ export function getFormSchema(state: State) {
             const onSelectToken = async () => {
                 const chainId = networkPicker?.selectedNetwork?.chainId;
                 if (chainId && firstTokenInput.token && secondTokenInput.token) {
-                    const addresses = await getVotings(state, chainId, firstTokenInput.token, secondTokenInput.token);
+                    const addresses = await getVotingAddresses(state, chainId, firstTokenInput.token, secondTokenInput.token);
                     comboVotingAddress.items = votingAddresses = addresses.map(address => ({ label: address, value: address }));
                 }
             }
@@ -169,7 +169,7 @@ export function getFormSchema(state: State) {
                             const tokens = tokenStore.getTokenList(data.chainId);
                             let tokenFrom = tokens.find(token => (token.address ?? "") == data.tokenFrom);
                             let tokenTo = tokens.find(token => (token.address ?? "") == data.tokenTo);
-                            const addresses = await getVotings(state, data.chainId, tokenFrom, tokenTo);
+                            const addresses = await getVotingAddresses(state, data.chainId, tokenFrom, tokenTo);
                             comboVotingAddress.items = votingAddresses = addresses.map(address => ({ label: address, value: address }));
                         }
                         control.selectedItem = votingAddresses.find(v => v.value === value) || null;
