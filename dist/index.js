@@ -215,9 +215,48 @@ define("@scom/scom-governance-voting/data.json.ts", ["require", "exports"], func
 define("@scom/scom-governance-voting/index.css.ts", ["require", "exports", "@ijstech/components"], function (require, exports, components_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.comboBoxStyle = void 0;
+    exports.comboBoxStyle = exports.voteListStyle = void 0;
     const Theme = components_3.Styles.Theme.ThemeVars;
-    exports.default = components_3.Styles.style({});
+    exports.default = components_3.Styles.style({
+        $nest: {
+            '.custom-box': {
+                boxShadow: '0 3px 6px #00000029',
+                backdropFilter: 'blur(74px)',
+                boxSizing: 'border-box',
+                overflow: 'hidden'
+            },
+            '.btn-os': {
+                color: '#fff',
+                fontWeight: 600,
+                fontSize: '1rem',
+                borderRadius: 5,
+                background: Theme.background.gradient,
+                $nest: {
+                    '&:disabled': {
+                        color: '#fff'
+                    }
+                }
+            },
+        }
+    });
+    exports.voteListStyle = components_3.Styles.style({
+        $nest: {
+            '.truncate': {
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+            },
+            '.expiry--text': {
+                whiteSpace: 'inherit'
+            },
+            '.prevent-pointer': {
+                cursor: 'not-allowed'
+            },
+            '.proposal-progress .i-progress_overlay, .proposal-progress .i-progress_bar': {
+                borderRadius: '100px'
+            }
+        }
+    });
     exports.comboBoxStyle = components_3.Styles.style({
         width: '100% !important',
         $nest: {
@@ -244,11 +283,406 @@ define("@scom/scom-governance-voting/index.css.ts", ["require", "exports", "@ijs
         }
     });
 });
-define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/components", "@scom/scom-governance-voting/store/index.ts", "@scom/scom-governance-voting/assets.ts", "@scom/scom-governance-voting/data.json.ts", "@scom/scom-governance-voting/index.css.ts", "@ijstech/eth-wallet"], function (require, exports, components_4, index_1, assets_1, data_json_1, index_css_1, eth_wallet_2) {
+define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/oswap-openswap-contract", "@scom/scom-token-list", "@scom/scom-governance-voting/store/index.ts"], function (require, exports, eth_wallet_2, oswap_openswap_contract_1, scom_token_list_2, index_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
+    exports.getOptionVoted = exports.getVotingResult = exports.getVotingAddresses = void 0;
+    function govTokenDecimals(state) {
+        const chainId = state.getChainId();
+        return state.getGovToken(chainId).decimals || 18;
+    }
+    function decodeVotingParamsRawData(rawData) {
+        const data = rawData.slice(2);
+        let index = 0;
+        const executor = '0x' + data.slice(index, index + 64).replace('000000000000000000000000', '');
+        index += 64;
+        const id = new eth_wallet_2.BigNumber('0x' + data.slice(index, index + 64));
+        index += 64;
+        const name = '0x' + data.slice(index, index + 64);
+        index += 64;
+        let optionsIndex = new eth_wallet_2.BigNumber('0x' + data.slice(index, index + 64)).times(2).toNumber();
+        const optionsCount = new eth_wallet_2.BigNumber('0x' + data.slice(optionsIndex, optionsIndex + 64)).toNumber();
+        optionsIndex += 64;
+        const options = [];
+        for (let i = 0; i < optionsCount; i++) {
+            options.push('0x' + data.slice(optionsIndex, optionsIndex + 64));
+            optionsIndex += 64;
+        }
+        index += 64;
+        const voteStartTime = new eth_wallet_2.BigNumber('0x' + data.slice(index, index + 64));
+        index += 64;
+        const voteEndTime = new eth_wallet_2.BigNumber('0x' + data.slice(index, index + 64));
+        index += 64;
+        const executeDelay = new eth_wallet_2.BigNumber('0x' + data.slice(index, index + 64));
+        index += 64;
+        const status = [
+            new eth_wallet_2.BigNumber('0x' + data.slice(index, index + 64)).toNumber() === 1,
+            new eth_wallet_2.BigNumber('0x' + data.slice(index + 64, index + 128)).toNumber() === 1 //vetoed
+        ];
+        index += 128;
+        let optionsWeightIndex = new eth_wallet_2.BigNumber('0x' + data.slice(index, index + 64)).times(2).toNumber();
+        const optionsWeightCount = new eth_wallet_2.BigNumber('0x' + data.slice(optionsWeightIndex, optionsWeightIndex + 64)).toNumber();
+        optionsWeightIndex += 64;
+        const optionsWeight = [];
+        for (let i = 0; i < optionsWeightCount; i++) {
+            optionsWeight.push(new eth_wallet_2.BigNumber('0x' + data.slice(optionsWeightIndex, optionsWeightIndex + 64)));
+            optionsWeightIndex += 64;
+        }
+        index += 64;
+        const quorum = [
+            new eth_wallet_2.BigNumber('0x' + data.slice(index, index + 64)),
+            new eth_wallet_2.BigNumber('0x' + data.slice(index + 64, index + 128)),
+            new eth_wallet_2.BigNumber('0x' + data.slice(index + 128, index + 192)) //totalWeight
+        ];
+        index += 192;
+        let executeParamIndex = new eth_wallet_2.BigNumber('0x' + data.slice(index, index + 64)).times(2).toNumber();
+        const executeParamCount = new eth_wallet_2.BigNumber('0x' + data.slice(executeParamIndex, executeParamIndex + 64)).toNumber();
+        executeParamIndex += 64;
+        const executeParam = [];
+        for (let i = 0; i < executeParamCount; i++) {
+            executeParam.push('0x' + data.slice(executeParamIndex, executeParamIndex + 64));
+            executeParamIndex += 64;
+        }
+        const struct = {
+            executor_: executor,
+            id_: id,
+            name_: name,
+            options_: options,
+            voteStartTime_: voteStartTime,
+            voteEndTime_: voteEndTime,
+            executeDelay_: executeDelay,
+            status_: status,
+            optionsWeight_: optionsWeight,
+            quorum_: quorum,
+            executeParam_: executeParam
+        };
+        return struct;
+    }
+    function parseVotingExecuteParam(params) {
+        let executeParam;
+        let _executeParam = params.executeParam_;
+        if (_executeParam && Array.isArray(_executeParam) && _executeParam.length) {
+            let cmd = eth_wallet_2.Utils.bytes32ToString(_executeParam[0]).replace(/\x00/gi, "");
+            switch (cmd) {
+                case "addOldOracleToNewPair":
+                    executeParam = {
+                        "cmd": cmd,
+                        "token0": _executeParam[1].substring(0, 42),
+                        "token1": _executeParam[2].substring(0, 42),
+                        "oracle": _executeParam[3].substring(0, 42)
+                    };
+                    break;
+                case "setOracle":
+                    executeParam = {
+                        "cmd": cmd,
+                        "token0": _executeParam[1].substring(0, 42),
+                        "token1": _executeParam[2].substring(0, 42),
+                        "oracle": _executeParam[3].substring(0, 42)
+                    };
+                    break;
+            }
+        }
+        return executeParam;
+    }
+    function getVotingTitle(result) {
+        var _a, _b, _c, _d;
+        let title;
+        if (!result.addTitle)
+            return title;
+        const token0 = result.executeParam.token0;
+        const token1 = result.executeParam.token1;
+        let symbol0 = token0 ? (_b = (_a = scom_token_list_2.tokenStore.tokenMap[token0.toLowerCase()]) === null || _a === void 0 ? void 0 : _a.symbol) !== null && _b !== void 0 ? _b : '' : '';
+        let symbol1 = token1 ? (_d = (_c = scom_token_list_2.tokenStore.tokenMap[token1.toLowerCase()]) === null || _c === void 0 ? void 0 : _c.symbol) !== null && _d !== void 0 ? _d : '' : '';
+        switch (result.executeParam.cmd) {
+            case "addOldOracleToNewPair":
+                ;
+                title = "Add Price Oracle for Pair " + symbol0 + "/" + symbol1;
+                break;
+            case "setOracle":
+                title = "Add New / Change Price Oracle for Pair " + symbol0 + "/" + symbol1;
+                break;
+        }
+        return title;
+    }
+    function parseVotingParams(state, params) {
+        let result = {
+            executor: params.executor_,
+            address: params.address,
+            id: params.id_,
+            name: eth_wallet_2.Utils.bytes32ToString(params.name_),
+            options: {},
+            quorum: eth_wallet_2.Utils.fromDecimals(params.quorum_[0]).toFixed(),
+            voteStartTime: new Date(params.voteStartTime_ * 1000),
+            endTime: new Date(params.voteEndTime_ * 1000),
+            executeDelay: params.executeDelay_,
+            executed: params.status_[0],
+            vetoed: params.status_[1],
+            totalWeight: eth_wallet_2.Utils.fromDecimals(params.quorum_[2]).toFixed(),
+            threshold: eth_wallet_2.Utils.fromDecimals(params.quorum_[1]).toFixed(),
+            remain: 0,
+            quorumRemain: '0'
+        };
+        let voteEndTime = Number(params.voteEndTime_);
+        let now = Math.ceil(Date.now() / 1000);
+        let diff = Number(voteEndTime) - now;
+        result.remain = diff > 0 ? diff : 0;
+        let quorumRemain = new eth_wallet_2.BigNumber(result.quorum);
+        let govDecimals = govTokenDecimals(state);
+        for (let i = 0; i < params.options_.length; i++) {
+            let weight = eth_wallet_2.Utils.fromDecimals(params.optionsWeight_[i], govDecimals);
+            result.options[eth_wallet_2.Utils.bytes32ToString(params.options_[i])] = weight;
+            quorumRemain = quorumRemain.minus(weight);
+        }
+        result.quorumRemain = quorumRemain.lt(0) ? '0' : quorumRemain.toFixed();
+        if (params.executeParam_ && Array.isArray(params.executeParam_) && params.executeParam_.length) {
+            let executeDelay = Number(params.executeDelay_);
+            diff = (voteEndTime + executeDelay) - now;
+            if (result.vetoed_)
+                result.veto = true;
+            else if (params.executed_)
+                result.executed = true;
+            else
+                result.executiveDelay = diff > 0 ? diff : 0;
+            result.majorityPassed = new eth_wallet_2.BigNumber(params.optionsWeight_[0]).gt(params.optionsWeight_[1]);
+            result.thresholdPassed = new eth_wallet_2.BigNumber(params.optionsWeight_[0]).div(new eth_wallet_2.BigNumber(params.optionsWeight_[0]).plus(params.optionsWeight_[1])).gt(result.threshold);
+            if (result.vetoed) {
+                result.status = "vetoed";
+            }
+            else if (result.remain > 0) {
+                result.status = "in_progress";
+            }
+            else if (!result.majorityPassed || !result.thresholdPassed || Number(result.quorumRemain) > 0) {
+                result.status = "not_passed";
+            }
+            else if (result.executiveDelay > 0) {
+                result.status = "waiting_execution_delay";
+            }
+            else if (result.executed) {
+                result.status = "executed";
+            }
+            else {
+                result.status = "waiting_execution";
+            }
+            result.executeParam = parseVotingExecuteParam(params);
+        }
+        let title = getVotingTitle(result);
+        if (title)
+            result.title = title;
+        return result;
+    }
+    async function getVotingAddresses(state, chainId, tokenA, tokenB) {
+        let addresses = [];
+        try {
+            const wallet = state.getRpcWallet();
+            await wallet.init();
+            if (wallet.chainId != chainId)
+                await wallet.switchNetwork(chainId);
+            let gov = state.getAddresses(chainId).OAXDEX_Governance;
+            let govContract = new oswap_openswap_contract_1.Contracts.OAXDEX_Governance(wallet, gov);
+            let votings = await govContract.allVotings();
+            const WETH9 = (0, index_1.getWETH)(chainId);
+            let tokens = [tokenA, tokenB].map(e => (e === null || e === void 0 ? void 0 : e.address) ? e : WETH9);
+            if (!new eth_wallet_2.BigNumber(tokens[0].address.toLowerCase()).lt(tokens[1].address.toLowerCase())) {
+                tokens = [tokens[1], tokens[0]];
+            }
+            let votingContract = new oswap_openswap_contract_1.Contracts.OAXDEX_VotingContract(wallet);
+            const getParamsTxData = wallet.encodeFunctionCall(votingContract, 'getParams', []);
+            const getParamsResult = await wallet.multiCall(votings.map(v => {
+                return {
+                    to: v,
+                    data: getParamsTxData
+                };
+            }));
+            for (let i = 0; i < votings.length; i++) {
+                let result = decodeVotingParamsRawData(getParamsResult.results[i]);
+                let executeParam = parseVotingExecuteParam(result);
+                if (!executeParam)
+                    continue;
+                if (executeParam.token0 === tokens[0].address && executeParam.token1 === tokens[1].address) {
+                    addresses.push(votings[i]);
+                }
+            }
+        }
+        catch (err) { }
+        return addresses;
+    }
+    exports.getVotingAddresses = getVotingAddresses;
+    async function getVotingResult(state, votingAddress) {
+        const wallet = state.getRpcWallet();
+        const votingContract = new oswap_openswap_contract_1.Contracts.OAXDEX_VotingContract(wallet, votingAddress);
+        const getParams = await votingContract.getParams();
+        let result = parseVotingParams(state, getParams);
+        result.address = votingAddress;
+        return result;
+    }
+    exports.getVotingResult = getVotingResult;
+    async function getOptionVoted(state, votingAddress, address) {
+        let result;
+        const wallet = state.getRpcWallet();
+        if (!address)
+            address = wallet.account.address;
+        const votingContract = new oswap_openswap_contract_1.Contracts.OAXDEX_VotingContract(wallet, votingAddress);
+        try {
+            let option = await votingContract.accountVoteOption(address);
+            let weight = await votingContract.accountVoteWeight(address);
+            result = { option: option, weight: weight };
+        }
+        catch (err) { }
+        return result;
+    }
+    exports.getOptionVoted = getOptionVoted;
+});
+define("@scom/scom-governance-voting/voteList.tsx", ["require", "exports", "@ijstech/components", "@scom/scom-governance-voting/index.css.ts", "@ijstech/eth-wallet", "@scom/scom-governance-voting/api.ts"], function (require, exports, components_4, index_css_1, eth_wallet_3, api_1) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    exports.GovernanceVoteList = void 0;
     const Theme = components_4.Styles.Theme.ThemeVars;
-    let GovernanceVoting = class GovernanceVoting extends components_4.Module {
+    let GovernanceVoteList = class GovernanceVoteList extends components_4.Module {
+        constructor() {
+            super(...arguments);
+            this.userWeightVote = {};
+            this.getVoteOptions = async () => {
+                const address = eth_wallet_3.Wallet.getClientInstance().account.address;
+                const getOptionVote = await (0, api_1.getOptionVoted)(this.state, this.data.address, address);
+                this.userWeightVote = {
+                    option: getOptionVote.option,
+                    weight: eth_wallet_3.Utils.fromDecimals(getOptionVote.weight).toFixed()
+                };
+                if (this.hasVoted && this.data.options[this.userWeightVote.option] && this.onSelect)
+                    this.onSelect(this.userWeightVote.option);
+            };
+        }
+        get data() {
+            return this._data;
+        }
+        set data(value) {
+            this._data = value;
+            this.renderUI();
+        }
+        get state() {
+            return this._state;
+        }
+        set state(value) {
+            this._state = value;
+        }
+        get selectedChoiceText() {
+            var _a, _b;
+            return ((_a = this.selectedItem) === null || _a === void 0 ? void 0 : _a.optionText) || ((_b = this.data) === null || _b === void 0 ? void 0 : _b.selectedVotes[0]) || this.optionValue;
+        }
+        get hasVoted() {
+            return !(this.userWeightVote.weight == 0 || this.userWeightVote.weight == undefined);
+        }
+        get isDropdownDisabled() {
+            if (this.remainingTimeToBeExpired > 0)
+                return false;
+            else
+                return true;
+        }
+        get remainingTimeToBeExpired() {
+            return (0, components_4.moment)(this.data.expiry).diff(Date());
+        }
+        get optionValue() {
+            if (!this.hasVoted || !this.data.options[this.userWeightVote.option]) {
+                return 'Your choice';
+            }
+            else {
+                const option = this.data.options[this.userWeightVote.option];
+                return option.optionText;
+            }
+        }
+        get stakeVote() {
+            if (!this.hasVoted) {
+                if (this.remainingTimeToBeExpired > 0)
+                    return 'You have not voted yet!';
+                else
+                    return 'Vote has ended!';
+            }
+            const chainId = this.state.getChainId();
+            return `You staked: ${(+this.userWeightVote.weight).toLocaleString('en-US')} ${this.state.getGovToken(chainId).symbol}`;
+        }
+        init() {
+            super.init();
+            this.classList.add(index_css_1.voteListStyle);
+            this.onSelect = this.getAttribute('onSelect', true) || this.onSelect;
+            const dataAttr = this.getAttribute('data', true);
+            if (dataAttr)
+                this.data = dataAttr;
+        }
+        async renderUI() {
+            if (!this.dropdownStack)
+                return;
+            await this.getVoteOptions();
+            this.dropdownStack.clearInnerHTML();
+            this.btnChoice = await components_4.Button.create({
+                caption: this.selectedChoiceText,
+                width: '100%',
+                padding: { top: '0.8rem', bottom: '0.8rem', left: '0.75rem', right: '0.75rem' },
+                font: { size: '1.5rem', bold: true, color: '#fff' },
+                rightIcon: { name: 'caret-down', width: 16, height: 16, fill: '#fff' },
+                border: { radius: 0 },
+                background: { color: `${Theme.background.gradient} !important` },
+                enabled: !this.isDropdownDisabled,
+                opacity: 1
+            });
+            this.btnChoice.onClick = () => modalElm.visible = !modalElm.visible;
+            this.btnChoice.style.justifyContent = "space-between";
+            if (this.isDropdownDisabled)
+                this.btnChoice.classList.add('prevent-pointer');
+            const modalElm = await components_4.Modal.create({
+                minWidth: 300,
+                showBackdrop: false,
+                height: 'auto',
+                popupPlacement: 'bottom'
+            });
+            modalElm.classList.add("account-dropdown");
+            modalElm.style.width = '100%';
+            const vstack = await components_4.VStack.create({
+                gap: '15px'
+            });
+            const itemCaptions = this.data.options || [];
+            itemCaptions.forEach(async (option, i) => {
+                const buttonItem = await components_4.Button.create({
+                    caption: option.optionText,
+                    width: '100%',
+                    height: 'auto',
+                    padding: { top: '0.5rem', bottom: '0.5rem', left: '0.75rem', right: '0.75rem' }
+                });
+                buttonItem.onClick = (source, event) => {
+                    event.stopPropagation();
+                    this.onSelectItem(option, i);
+                    modalElm.visible = false;
+                    return true;
+                };
+                vstack.appendChild(buttonItem);
+                modalElm.item = vstack;
+            });
+            this.dropdownStack.append(this.btnChoice, modalElm);
+            if (this.lblDesc)
+                this.lblDesc.caption = this.stakeVote;
+        }
+        onSelectItem(option, index) {
+            this.selectedItem = option;
+            if (this.btnChoice)
+                this.btnChoice.caption = this.selectedChoiceText;
+            if (this.onSelect)
+                this.onSelect(index);
+        }
+        render() {
+            return (this.$render("i-panel", null,
+                this.$render("i-panel", { id: "dropdownStack", minWidth: 200 }),
+                this.$render("i-label", { id: "lblDesc", caption: "Vote has ended!", margin: { top: '0.25rem' }, font: { size: '0.875rem', color: Theme.text.third }, lineHeight: 1.2 })));
+        }
+    };
+    GovernanceVoteList = __decorate([
+        (0, components_4.customElements)('i-scom-governance-voting-vote-list')
+    ], GovernanceVoteList);
+    exports.GovernanceVoteList = GovernanceVoteList;
+});
+define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/components", "@scom/scom-governance-voting/store/index.ts", "@scom/scom-governance-voting/assets.ts", "@scom/scom-governance-voting/data.json.ts", "@scom/scom-governance-voting/index.css.ts", "@ijstech/eth-wallet"], function (require, exports, components_5, index_2, assets_1, data_json_1, index_css_2, eth_wallet_4) {
+    "use strict";
+    Object.defineProperty(exports, "__esModule", { value: true });
+    const Theme = components_5.Styles.Theme.ThemeVars;
+    let GovernanceVoting = class GovernanceVoting extends components_5.Module {
         constructor() {
             super(...arguments);
             this._data = {
@@ -262,7 +696,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.tag = {};
             this.initWallet = async () => {
                 try {
-                    await eth_wallet_2.Wallet.getClientInstance().init();
+                    await eth_wallet_4.Wallet.getClientInstance().init();
                     const rpcWallet = this.state.getRpcWallet();
                     await rpcWallet.init();
                 }
@@ -289,9 +723,9 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 this.txStatusModal.showModal();
             };
             this.connectWallet = async () => {
-                if (!(0, index_1.isClientWalletConnected)()) {
+                if (!(0, index_2.isClientWalletConnected)()) {
                     if (this.mdWallet) {
-                        await components_4.application.loadPackage('@scom/scom-wallet-modal', '*');
+                        await components_5.application.loadPackage('@scom/scom-wallet-modal', '*');
                         this.mdWallet.networks = this.networks;
                         this.mdWallet.wallets = this.wallets;
                         this.mdWallet.showModal();
@@ -299,7 +733,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     return;
                 }
                 if (!this.state.isRpcWalletConnected()) {
-                    const clientWallet = eth_wallet_2.Wallet.getClientInstance();
+                    const clientWallet = eth_wallet_4.Wallet.getClientInstance();
                     await clientWallet.switchNetwork(this.chainId);
                 }
             };
@@ -349,7 +783,8 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         async init() {
             this.isReadyCallbackQueued = true;
             super.init();
-            this.state = new index_1.State(data_json_1.default);
+            this.state = new index_2.State(data_json_1.default);
+            this.voteList.state = this.state;
             const lazyLoad = this.getAttribute('lazyLoad', true, false);
             if (!lazyLoad) {
                 const defaultChainId = this.getAttribute('defaultChainId', true);
@@ -426,10 +861,10 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.removeRpcWalletEvents();
             const rpcWalletId = this.state.initRpcWallet(this.defaultChainId);
             const rpcWallet = this.state.getRpcWallet();
-            const chainChangedEvent = rpcWallet.registerWalletEvent(this, eth_wallet_2.Constants.RpcWalletEvent.ChainChanged, async (chainId) => {
+            const chainChangedEvent = rpcWallet.registerWalletEvent(this, eth_wallet_4.Constants.RpcWalletEvent.ChainChanged, async (chainId) => {
                 this.refreshUI();
             });
-            const connectedEvent = rpcWallet.registerWalletEvent(this, eth_wallet_2.Constants.RpcWalletEvent.Connected, async (connected) => {
+            const connectedEvent = rpcWallet.registerWalletEvent(this, eth_wallet_4.Constants.RpcWalletEvent.Connected, async (connected) => {
                 this.refreshUI();
             });
             const data = {
@@ -445,20 +880,95 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         async refreshUI() {
             await this.initializeWidgetConfig();
         }
+        selectVote(index) { }
+        async handleExecute() { }
+        async onSubmitVote() { }
         render() {
             return (this.$render("i-scom-dapp-container", { id: "dappContainer" },
-                this.$render("i-panel", { class: index_css_1.default, background: { color: Theme.background.main } },
+                this.$render("i-panel", { class: index_css_2.default, background: { color: Theme.background.main } },
                     this.$render("i-panel", null,
                         this.$render("i-vstack", { id: "loadingElm", class: "i-loading-overlay" },
                             this.$render("i-vstack", { class: "i-loading-spinner", horizontalAlignment: "center", verticalAlignment: "center" },
                                 this.$render("i-icon", { class: "i-loading-spinner_icon", image: { url: assets_1.default.fullPath('img/loading.svg'), width: 36, height: 36 } }),
-                                this.$render("i-label", { caption: "Loading...", font: { color: '#FD4A4C', size: '1.5em' }, class: "i-loading-spinner_text" })))),
+                                this.$render("i-label", { caption: "Loading...", font: { color: '#FD4A4C', size: '1.5em' }, class: "i-loading-spinner_text" }))),
+                        this.$render("i-vstack", { width: "100%", height: "100%", maxWidth: 1200, padding: { top: "1rem", bottom: "1rem", left: "1rem", right: "1rem" }, margin: { left: 'auto', right: 'auto' }, gap: "0.75rem" },
+                            this.$render("i-label", { id: "lblTitle", font: { size: 'clamp(1rem, 0.8rem + 1vw, 2rem)', weight: 600 } }),
+                            this.$render("i-panel", { padding: { top: "1rem", bottom: "1rem" } },
+                                this.$render("i-stack", { direction: "horizontal", alignItems: "center", justifyContent: "space-between", mediaQueries: [{
+                                            maxWidth: '767px', properties: {
+                                                direction: 'vertical', alignItems: 'start', justifyContent: 'start', gap: '1rem'
+                                            }
+                                        }] },
+                                    this.$render("i-vstack", { gap: "0.5rem" },
+                                        this.$render("i-hstack", { gap: 4, verticalAlignment: "center" },
+                                            this.$render("i-label", { caption: "Staked Balance: ", font: { size: '1rem', color: Theme.text.third, bold: true } }),
+                                            this.$render("i-label", { id: "lblStakedBalance", font: { size: '1rem', color: Theme.text.third } })),
+                                        this.$render("i-label", { id: "lblFreezeStakeAmount", visible: false })),
+                                    this.$render("i-vstack", null,
+                                        this.$render("i-hstack", { gap: 4, verticalAlignment: "center" },
+                                            this.$render("i-label", { caption: "Voting Balance: ", font: { size: '1rem', color: Theme.text.third, bold: true } }),
+                                            this.$render("i-label", { id: "lblVotingBalance", font: { size: '1rem', color: Theme.text.third } }))))),
+                            this.$render("i-vstack", { padding: { top: '1rem', bottom: '1rem' }, gap: "0.75rem" },
+                                this.$render("i-stack", { direction: "horizontal", minHeight: 100, alignItems: "center", gap: "1.5rem", mediaQueries: [{ maxWidth: '767px', properties: { direction: 'vertical' } }] },
+                                    this.$render("i-vstack", { width: "100%", class: "custom-box", background: { color: 'rgba(255, 255, 255, 0.13)' }, padding: { top: 10, bottom: 10, left: 20, right: 20 }, border: { radius: 15, width: '1px', style: 'solid', color: '#fff' }, gap: 10 },
+                                        this.$render("i-hstack", { horizontalAlignment: "space-between", verticalAlignment: "center" },
+                                            this.$render("i-label", { caption: "In Favour", font: { size: '1rem', weight: 600 } }),
+                                            this.$render("i-label", { caption: "Quorum", font: { size: '1rem', weight: 600 } })),
+                                        this.$render("i-panel", { height: 18, width: "100%", border: { radius: 6 }, overflow: { x: 'hidden' }, background: { color: '#fff' } },
+                                            this.$render("i-hstack", { id: "inFavourBar", width: 0, height: "100%", background: { color: '#01d394' } })),
+                                        this.$render("i-hstack", { horizontalAlignment: "space-between", verticalAlignment: "center" },
+                                            this.$render("i-label", { id: "lblVoteOptionY", font: { size: '1rem', weight: 600, color: '#01d394' } }),
+                                            this.$render("i-label", { id: "lblInFavourVotingQuorum", font: { size: '1rem', weight: 600 } }))),
+                                    this.$render("i-vstack", { width: "100%", class: "custom-box", background: { color: 'rgba(255, 255, 255, 0.13)' }, padding: { top: 10, bottom: 10, left: 20, right: 20 }, border: { radius: 15, width: '1px', style: 'solid', color: '#fff' }, gap: 10 },
+                                        this.$render("i-hstack", { horizontalAlignment: "space-between", verticalAlignment: "center" },
+                                            this.$render("i-label", { caption: "Against", font: { size: '1rem', weight: 600 } }),
+                                            this.$render("i-label", { caption: "Quorum", font: { size: '1rem', weight: 600 } })),
+                                        this.$render("i-panel", { height: 18, width: "100%", border: { radius: 6 }, overflow: { x: 'hidden' }, background: { color: '#fff' } },
+                                            this.$render("i-hstack", { id: "againstBar", width: 0, height: "100%", background: { color: '#E84F4F' } })),
+                                        this.$render("i-hstack", { horizontalAlignment: "space-between", verticalAlignment: "center" },
+                                            this.$render("i-label", { id: "lblVoteOptionN", font: { size: '1rem', weight: 600, color: '#E84F4F' } }),
+                                            this.$render("i-label", { id: "lblAgainstVotingQuorum", font: { size: '1rem', weight: 600 } })))),
+                                this.$render("i-stack", { class: "custom-box", minHeight: 100, background: { color: 'rgba(255, 255, 255, 0.13)' }, padding: { top: 10, bottom: 10, left: 20, right: 20 }, border: { radius: 15, width: '1px', style: 'solid', color: '#fff' }, gap: "1rem", direction: "horizontal", mediaQueries: [{ maxWidth: '767px', properties: { direction: 'vertical' } }] },
+                                    this.$render("i-vstack", { width: "100%", gap: "0.5rem" },
+                                        this.$render("i-label", { caption: "Date Created", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
+                                        this.$render("i-label", { id: "lblVoteStartTime" })),
+                                    this.$render("i-vstack", { width: "100%", gap: "0.5rem" },
+                                        this.$render("i-label", { caption: "Vote Ends", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
+                                        this.$render("i-label", { id: "lblVoteEndTime" })),
+                                    this.$render("i-vstack", { width: "100%", gap: "0.5rem" },
+                                        this.$render("i-label", { caption: "Execute Delay", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
+                                        this.$render("i-label", { id: "lblExecuteDeplay" })),
+                                    this.$render("i-hstack", { width: "100%", horizontalAlignment: "end", verticalAlignment: "center" },
+                                        this.$render("i-button", { class: "btn-os", height: "auto", caption: "Execute", enabled: false, padding: { top: '0.35rem', bottom: '0.35rem', left: '1.5rem', right: '1.5rem' }, onClick: this.handleExecute.bind(this) }))),
+                                this.$render("i-grid-layout", { width: "100%", minHeight: 100, background: { color: 'rgba(255, 255, 255, 0.13)' }, padding: { top: 10, bottom: 10, left: 20, right: 20 }, border: { radius: 15, width: '1px', style: 'solid', color: '#fff' }, gap: { column: 10, row: '1rem' }, templateColumns: ['repeat(2, 1fr)'], templateRows: ['repeat(3, auto)'], verticalAlignment: "stretch", mediaQueries: [
+                                        { maxWidth: '767px', properties: { templateColumns: ['repeat(1, 1fr)'], templateRows: ['auto'] } }
+                                    ] },
+                                    this.$render("i-vstack", { gap: "0.5rem" },
+                                        this.$render("i-label", { caption: "Description", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
+                                        this.$render("i-label", { id: "lblProposalDesc" })),
+                                    this.$render("i-vstack", { gap: "0.5rem" },
+                                        this.$render("i-label", { caption: "Action", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
+                                        this.$render("i-label", { id: "lblExecuteAction" })),
+                                    this.$render("i-vstack", { gap: "0.5rem" },
+                                        this.$render("i-label", { caption: "Value", margin: { top: '1rem' }, font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
+                                        this.$render("i-label", { id: "lblExecuteValue" })),
+                                    this.$render("i-vstack", { gap: "0.5rem" },
+                                        this.$render("i-label", { caption: "Quorum", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
+                                        this.$render("i-label", { id: "lblVotingQuorum" })),
+                                    this.$render("i-vstack", { gap: "0.5rem", visible: false },
+                                        this.$render("i-label", { caption: "Token Address", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
+                                        this.$render("i-label", { id: "lblTokenAddress", margin: { top: '0.5rem' } })),
+                                    this.$render("i-vstack", { gap: "0.5rem" },
+                                        this.$render("i-label", { caption: "Your Vote", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
+                                        this.$render("i-scom-governance-voting-vote-list", { id: "voteList", onSelect: this.selectVote.bind(this) })))),
+                            this.$render("i-vstack", { width: "100%", padding: { left: "1rem", right: "1rem" } },
+                                this.$render("i-button", { id: 'btnSubmitVote', class: 'btn-os', height: 'auto', caption: "Submit Vote", padding: { top: '0.75rem', bottom: '0.75rem', left: '1.5rem', right: '1.5rem' }, border: { radius: 5 }, font: { weight: 600 }, rightIcon: { spin: true, visible: false }, enabled: false, onClick: this.onSubmitVote.bind(this) })))),
                     this.$render("i-scom-tx-status-modal", { id: "txStatusModal" }),
                     this.$render("i-scom-wallet-modal", { id: "mdWallet", wallets: [] }))));
         }
     };
     GovernanceVoting = __decorate([
-        (0, components_4.customElements)('i-scom-governance-voting')
+        (0, components_5.customElements)('i-scom-governance-voting')
     ], GovernanceVoting);
     exports.default = GovernanceVoting;
 });

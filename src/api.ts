@@ -244,3 +244,16 @@ export async function getVotingResult(state: State, votingAddress: string) {
     result.address = votingAddress;
     return result;
 }
+
+export async function getOptionVoted(state: State, votingAddress: string, address: string) {
+    let result;
+    const wallet = state.getRpcWallet();
+    if (!address) address = wallet.account.address;
+    const votingContract = new Contracts.OAXDEX_VotingContract(wallet, votingAddress);
+    try {
+        let option = await votingContract.accountVoteOption(address);
+        let weight = await votingContract.accountVoteWeight(address);
+        result = { option: option, weight: weight };
+    } catch (err) {}
+    return result;
+}

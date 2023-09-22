@@ -60,8 +60,12 @@ export default class Module1 extends Module {
             <i-panel>
                 <i-hstack id="mainStack" margin={{ top: '1rem', left: '1rem' }} gap="2rem">
                     <i-scom-governance-voting
-                        width={600}
+                        width={1200}
                         defaultChainId={97}
+                        chainId={97}
+                        tokenFrom="0x45eee762aaeA4e5ce317471BDa8782724972Ee19"
+                        tokenTo="0x29386B60e0A9A1a30e1488ADA47256577ca2C385"
+                        votingAddress="0x9f65ad0eD92134894097B0b6F6cDe139A6692572"
                         networks={[
                             {
                                 "chainId": 43113

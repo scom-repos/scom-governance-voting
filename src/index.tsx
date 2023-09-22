@@ -1,7 +1,10 @@
 import {
     application,
+    Button,
     ControlElement,
     customElements,
+    HStack,
+    Label,
     Module,
     Panel,
     Styles
@@ -16,6 +19,7 @@ import Assets from './assets';
 import configData from './data.json';
 import customStyles from './index.css';
 import { Constants, Wallet } from "@ijstech/eth-wallet";
+import { GovernanceVoteList } from './voteList';
 
 const Theme = Styles.Theme.ThemeVars;
 
@@ -43,6 +47,26 @@ declare global {
 export default class GovernanceVoting extends Module {
     private dappContainer: ScomDappContainer;
     private loadingElm: Panel;
+    private lblTitle: Label;
+    private lblStakedBalance: Label;
+    private lblFreezeStakeAmount: Label;
+    private lblVotingBalance: Label;
+    private inFavourBar: HStack;
+    private lblVoteOptionY: Label;
+    private lblInFavourVotingQuorum: Label;
+    private againstBar: HStack;
+    private lblVoteOptionN: Label;
+    private lblAgainstVotingQuorum: Label;
+    private lblVoteStartTime: Label;
+    private lblVoteEndTime: Label;
+    private lblExecuteDeplay: Label;
+    private lblProposalDesc: Label;
+    private lblExecuteAction: Label;
+    private lblExecuteValue: Label;
+    private lblVotingQuorum: Label;
+    private lblTokenAddress: Label;
+    private voteList: GovernanceVoteList;
+    private btnSubmitVote: Button;
     private txStatusModal: ScomTxStatusModal;
     private mdWallet: ScomWalletModal;
 
@@ -108,6 +132,7 @@ export default class GovernanceVoting extends Module {
         this.isReadyCallbackQueued = true;
         super.init();
         this.state = new State(configData);
+        this.voteList.state = this.state;
         const lazyLoad = this.getAttribute('lazyLoad', true, false);
         if (!lazyLoad) {
             const defaultChainId = this.getAttribute('defaultChainId', true);
@@ -257,6 +282,12 @@ export default class GovernanceVoting extends Module {
         }
     }
 
+    private selectVote(index: number) { }
+
+    private async handleExecute() { }
+
+    private async onSubmitVote() { }
+
     render() {
         return (
             <i-scom-dapp-container id="dappContainer">
@@ -272,6 +303,227 @@ export default class GovernanceVoting extends Module {
                                     caption="Loading..." font={{ color: '#FD4A4C', size: '1.5em' }}
                                     class="i-loading-spinner_text"
                                 />
+                            </i-vstack>
+                        </i-vstack>
+                        <i-vstack
+                            width="100%"
+                            height="100%"
+                            maxWidth={1200}
+                            padding={{ top: "1rem", bottom: "1rem", left: "1rem", right: "1rem" }}
+                            margin={{ left: 'auto', right: 'auto' }}
+                            gap="0.75rem"
+                        >
+                            <i-label id="lblTitle" font={{ size: 'clamp(1rem, 0.8rem + 1vw, 2rem)', weight: 600 }}></i-label>
+                            <i-panel padding={{ top: "1rem", bottom: "1rem" }}>
+                                <i-stack
+                                    direction="horizontal" alignItems="center" justifyContent="space-between"
+                                    mediaQueries={[{
+                                        maxWidth: '767px', properties: {
+                                            direction: 'vertical', alignItems: 'start', justifyContent: 'start', gap: '1rem'
+                                        }
+                                    }]}
+                                >
+                                    <i-vstack gap="0.5rem">
+                                        <i-hstack gap={4} verticalAlignment="center">
+                                            <i-label caption="Staked Balance: " font={{ size: '1rem', color: Theme.text.third, bold: true }}></i-label>
+                                            <i-label id="lblStakedBalance" font={{ size: '1rem', color: Theme.text.third }}></i-label>
+                                        </i-hstack>
+                                        <i-label id="lblFreezeStakeAmount" visible={false}></i-label>
+                                    </i-vstack>
+                                    <i-vstack>
+                                        <i-hstack gap={4} verticalAlignment="center">
+                                            <i-label caption="Voting Balance: " font={{ size: '1rem', color: Theme.text.third, bold: true }}></i-label>
+                                            <i-label id="lblVotingBalance" font={{ size: '1rem', color: Theme.text.third }}></i-label>
+                                        </i-hstack>
+                                    </i-vstack>
+                                </i-stack>
+                            </i-panel>
+                            <i-vstack padding={{ top: '1rem', bottom: '1rem' }} gap="0.75rem">
+                                <i-stack
+                                    direction="horizontal"
+                                    minHeight={100}
+                                    alignItems="center"
+                                    gap="1.5rem"
+                                    mediaQueries={[{ maxWidth: '767px', properties: { direction: 'vertical' } }]}
+                                >
+                                    <i-vstack
+                                        width="100%"
+                                        class="custom-box"
+                                        background={{ color: 'rgba(255, 255, 255, 0.13)' }}
+                                        padding={{ top: 10, bottom: 10, left: 20, right: 20 }}
+                                        border={{ radius: 15, width: '1px', style: 'solid', color: '#fff' }}
+                                        gap={10}
+                                    >
+                                        <i-hstack horizontalAlignment="space-between" verticalAlignment="center">
+                                            <i-label caption="In Favour" font={{ size: '1rem', weight: 600 }}></i-label>
+                                            <i-label caption="Quorum" font={{ size: '1rem', weight: 600 }}></i-label>
+                                        </i-hstack>
+                                        <i-panel
+                                            height={18} width="100%"
+                                            border={{ radius: 6 }}
+                                            overflow={{ x: 'hidden' }}
+                                            background={{ color: '#fff' }}
+                                        >
+                                            <i-hstack
+                                                id="inFavourBar"
+                                                width={0}
+                                                height="100%"
+                                                background={{ color: '#01d394' }}
+                                            ></i-hstack>
+                                        </i-panel>
+
+                                        <i-hstack horizontalAlignment="space-between" verticalAlignment="center">
+                                            <i-label id="lblVoteOptionY" font={{ size: '1rem', weight: 600, color: '#01d394' }}></i-label>
+                                            <i-label id="lblInFavourVotingQuorum" font={{ size: '1rem', weight: 600 }}></i-label>
+                                        </i-hstack>
+                                    </i-vstack>
+                                    <i-vstack
+                                        width="100%"
+                                        class="custom-box"
+                                        background={{ color: 'rgba(255, 255, 255, 0.13)' }}
+                                        padding={{ top: 10, bottom: 10, left: 20, right: 20 }}
+                                        border={{ radius: 15, width: '1px', style: 'solid', color: '#fff' }}
+                                        gap={10}
+                                    >
+                                        <i-hstack horizontalAlignment="space-between" verticalAlignment="center">
+                                            <i-label caption="Against" font={{ size: '1rem', weight: 600 }}></i-label>
+                                            <i-label caption="Quorum" font={{ size: '1rem', weight: 600 }}></i-label>
+                                        </i-hstack>
+                                        <i-panel
+                                            height={18} width="100%"
+                                            border={{ radius: 6 }}
+                                            overflow={{ x: 'hidden' }}
+                                            background={{ color: '#fff' }}
+                                        >
+                                            <i-hstack
+                                                id="againstBar"
+                                                width={0}
+                                                height="100%"
+                                                background={{ color: '#E84F4F' }}
+                                            ></i-hstack>
+                                        </i-panel>
+                                        <i-hstack horizontalAlignment="space-between" verticalAlignment="center">
+                                            <i-label id="lblVoteOptionN" font={{ size: '1rem', weight: 600, color: '#E84F4F' }}></i-label>
+                                            <i-label id="lblAgainstVotingQuorum" font={{ size: '1rem', weight: 600 }}></i-label>
+                                        </i-hstack>
+                                    </i-vstack>
+
+                                </i-stack>
+                                <i-stack
+                                    class="custom-box"
+                                    minHeight={100}
+                                    background={{ color: 'rgba(255, 255, 255, 0.13)' }}
+                                    padding={{ top: 10, bottom: 10, left: 20, right: 20 }}
+                                    border={{ radius: 15, width: '1px', style: 'solid', color: '#fff' }}
+                                    gap="1rem"
+                                    direction="horizontal"
+                                    mediaQueries={[{ maxWidth: '767px', properties: { direction: 'vertical' } }]}
+                                >
+                                    <i-vstack width="100%" gap="0.5rem">
+                                        <i-label
+                                            caption="Date Created"
+                                            font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
+                                        ></i-label>
+                                        <i-label id="lblVoteStartTime"></i-label>
+                                    </i-vstack>
+                                    <i-vstack width="100%" gap="0.5rem">
+                                        <i-label
+                                            caption="Vote Ends"
+                                            font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
+                                        ></i-label>
+                                        <i-label id="lblVoteEndTime"></i-label>
+                                    </i-vstack>
+                                    <i-vstack width="100%" gap="0.5rem">
+                                        <i-label
+                                            caption="Execute Delay"
+                                            font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
+                                        ></i-label>
+                                        <i-label id="lblExecuteDeplay"></i-label>
+                                    </i-vstack>
+                                    <i-hstack width="100%" horizontalAlignment="end" verticalAlignment="center">
+                                        <i-button
+                                            class="btn-os"
+                                            height="auto"
+                                            caption="Execute"
+                                            enabled={false}
+                                            padding={{ top: '0.35rem', bottom: '0.35rem', left: '1.5rem', right: '1.5rem' }}
+                                            onClick={this.handleExecute.bind(this)}
+                                        ></i-button>
+                                    </i-hstack>
+                                </i-stack>
+                                <i-grid-layout
+                                    width="100%" minHeight={100}
+                                    background={{ color: 'rgba(255, 255, 255, 0.13)' }}
+                                    padding={{ top: 10, bottom: 10, left: 20, right: 20 }}
+                                    border={{ radius: 15, width: '1px', style: 'solid', color: '#fff' }}
+                                    gap={{ column: 10, row: '1rem' }}
+                                    templateColumns={['repeat(2, 1fr)']}
+                                    templateRows={['repeat(3, auto)']}
+                                    verticalAlignment="stretch"
+                                    mediaQueries={[
+                                        { maxWidth: '767px', properties: { templateColumns: ['repeat(1, 1fr)'], templateRows: ['auto'] } }
+                                    ]}
+                                >
+                                    <i-vstack gap="0.5rem">
+                                        <i-label
+                                            caption="Description"
+                                            font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
+                                        ></i-label>
+                                        <i-label id="lblProposalDesc"></i-label>
+                                    </i-vstack>
+                                    <i-vstack gap="0.5rem">
+                                        <i-label
+                                            caption="Action"
+                                            font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
+                                        ></i-label>
+                                        <i-label id="lblExecuteAction"></i-label>
+                                    </i-vstack>
+                                    <i-vstack gap="0.5rem">
+                                        <i-label
+                                            caption="Value" margin={{ top: '1rem' }}
+                                            font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
+                                        ></i-label>
+                                        <i-label id="lblExecuteValue"></i-label>
+                                    </i-vstack>
+                                    <i-vstack gap="0.5rem">
+                                        <i-label
+                                            caption="Quorum"
+                                            font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
+                                        ></i-label>
+                                        <i-label id="lblVotingQuorum"></i-label>
+                                    </i-vstack>
+                                    <i-vstack gap="0.5rem" visible={false}>
+                                        <i-label
+                                            caption="Token Address"
+                                            font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
+                                        ></i-label>
+                                        <i-label id="lblTokenAddress" margin={{ top: '0.5rem' }}></i-label>
+                                    </i-vstack>
+                                    <i-vstack gap="0.5rem">
+                                        <i-label
+                                            caption="Your Vote"
+                                            font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
+                                        ></i-label>
+                                        <i-scom-governance-voting-vote-list id="voteList" onSelect={this.selectVote.bind(this)} />
+                                    </i-vstack>
+                                </i-grid-layout>
+                            </i-vstack>
+                            <i-vstack
+                                width="100%"
+                                padding={{ left: "1rem", right: "1rem" }}
+                            >
+                                <i-button
+                                    id='btnSubmitVote'
+                                    class='btn-os'
+                                    height='auto'
+                                    caption="Submit Vote"
+                                    padding={{ top: '0.75rem', bottom: '0.75rem', left: '1.5rem', right: '1.5rem' }}
+                                    border={{ radius: 5 }}
+                                    font={{ weight: 600 }}
+                                    rightIcon={{ spin: true, visible: false }}
+                                    enabled={false}
+                                    onClick={this.onSubmitVote.bind(this)}
+                                ></i-button>
                             </i-vstack>
                         </i-vstack>
                     </i-panel>
