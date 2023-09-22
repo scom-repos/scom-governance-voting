@@ -44,6 +44,10 @@ export default class GovernanceVoting extends Module {
 
     private state: State;
     private _data: IGovernanceVoting = {
+        chainId: 0,
+        tokenFrom: '',
+        tokenTo: '',
+        votingAddress: '',
         wallets: [],
         networks: []
     };
@@ -102,11 +106,19 @@ export default class GovernanceVoting extends Module {
         this.state = new State(configData);
         const lazyLoad = this.getAttribute('lazyLoad', true, false);
         if (!lazyLoad) {
+            const defaultChainId = this.getAttribute('defaultChainId', true);
+			const chainId = this.getAttribute('chainId', true, defaultChainId || 0);
+            const tokenFrom = this.getAttribute('tokenFrom', true, '');
+            const tokenTo = this.getAttribute('tokenTo', true, '');
+            const votingAddress = this.getAttribute('votingAddress', true, '');
             const networks = this.getAttribute('networks', true);
             const wallets = this.getAttribute('wallets', true);
-            const defaultChainId = this.getAttribute('defaultChainId', true);
             const showHeader = this.getAttribute('showHeader', true);
             const data: IGovernanceVoting = {
+                chainId,
+                tokenFrom,
+                tokenTo,
+                votingAddress,
                 networks,
                 wallets,
                 defaultChainId,
