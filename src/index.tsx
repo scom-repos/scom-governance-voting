@@ -3,9 +3,11 @@ import {
     Button,
     ControlElement,
     customElements,
+    FormatUtils,
     HStack,
     Label,
     Module,
+    moment,
     Panel,
     Styles
 } from "@ijstech/components";
@@ -13,15 +15,33 @@ import ScomDappContainer from "@scom/scom-dapp-container";
 import { INetworkConfig } from "@scom/scom-network-picker";
 import ScomWalletModal, { IWalletPlugin } from "@scom/scom-wallet-modal";
 import ScomTxStatusModal from '@scom/scom-tx-status-modal';
-import { IGovernanceVoting } from "./interface";
+import { IGovernanceVoting, IOption, ProposalType } from "./interface";
 import { isClientWalletConnected, State } from "./store/index";
 import Assets from './assets';
 import configData from './data.json';
 import customStyles from './index.css';
-import { Constants, Wallet } from "@ijstech/eth-wallet";
+import { BigNumber, Constants, Wallet } from "@ijstech/eth-wallet";
 import { GovernanceVoteList } from './voteList';
+import { freezedStake, getVotingResult, stakeOf } from "./api";
+import { tokenStore } from "@scom/scom-token-list";
 
 const Theme = Styles.Theme.ThemeVars;
+
+const executeActionMap = {
+    setTradeFee: 'Set Trade Fee',
+    setProtocolFee: 'Set Protocol Fee',
+    setOracleProtocolFee: 'Set Oracle Protocol Fee',
+    setOracleTradeFee: 'Set Oracle Trade Fee',
+    setProtocolFeeTo: 'Set Protocol Fee Address',
+    setMinLotSize: 'Set Min Lot Size',
+    setVotingConfig: 'Set Voting Config',
+    setMaxAdmin: 'Set Max Admin',
+    addAdmin: 'Add Admin',
+    removeAdmin: 'Remove Admin',
+    setSecurityScoreOracle: 'Set Security Score Oracle',
+    setOracle: 'Modify Oracle',
+    setMinStakePeriod: 'Set Minimum Stake Period',
+}
 
 interface ScomGovernanceVotingElement extends ControlElement {
     lazyLoad?: boolean;
@@ -60,12 +80,13 @@ export default class GovernanceVoting extends Module {
     private lblVoteStartTime: Label;
     private lblVoteEndTime: Label;
     private lblExecuteDeplay: Label;
+    private btnExecute: Button;
     private lblProposalDesc: Label;
     private lblExecuteAction: Label;
     private lblExecuteValue: Label;
     private lblVotingQuorum: Label;
     private lblTokenAddress: Label;
-    private voteList: GovernanceVoteList;
+    private governanceVoteList: GovernanceVoteList;
     private btnSubmitVote: Button;
     private txStatusModal: ScomTxStatusModal;
     private mdWallet: ScomWalletModal;
@@ -80,6 +101,24 @@ export default class GovernanceVoting extends Module {
         networks: []
     };
     tag: any = {};
+    private lockTill: number = 0;
+    private selectedVoteTexts: string[] = [];
+    private isVoteSelected: boolean = false;
+    private proposalType: ProposalType;
+    private voteOptions: any;
+    private votingQuorum: string = '0';
+    private executeAction: string = '';
+    private executeValue: number | string = '0';
+    private tokenAddress: string = '';
+    private executeDelaySeconds: number = 0;
+    private voteStartTime: Date;
+    private executeDelayDatetime: Date;
+    private stakedBalance: string = '0';
+    private votingBalance: string = '0';
+    private freezeStakeAmount: BigNumber = new BigNumber(0);
+    private stakeOf: BigNumber = new BigNumber(0);
+    private expiry: Date;
+    private isCanExecute: boolean;
 
     private get chainId() {
         return this.state.getChainId();
@@ -114,6 +153,45 @@ export default class GovernanceVoting extends Module {
         this._data.showHeader = value;
     }
 
+    get votingAddress() {
+        return this._data.votingAddress;
+    }
+
+    private get isExecutive() {
+      return this.proposalType === 'Executive';
+    }
+
+    private get voteList(): IOption[] {
+      if (this.isExecutive) {
+        return [
+          {
+            optionText: 'In Favour',
+            optionValue: 'Y',
+          },
+          {
+            optionText: 'Against',
+            optionValue: 'N',
+          },
+        ];
+      } else {
+        return this.voteOptions
+          ? Object.keys(this.voteOptions).map((v, i) => {
+              return {
+                optionText: v,
+                optionValue: i,
+                optionWeight: this.voteOptions[v],
+              };
+            })
+          : [];
+      }
+    }
+
+    private get isAddVoteBallotDisabled() {
+        if (moment(this.expiry).isAfter(moment()))
+            return Number(this.stakeOf) > 0 ? false : true;
+        return true;
+    }
+
     removeRpcWalletEvents() {
         const rpcWallet = this.state.getRpcWallet();
         if (rpcWallet) rpcWallet.unregisterAllWalletEvents();
@@ -132,7 +210,7 @@ export default class GovernanceVoting extends Module {
         this.isReadyCallbackQueued = true;
         super.init();
         this.state = new State(configData);
-        this.voteList.state = this.state;
+        this.governanceVoteList.state = this.state;
         const lazyLoad = this.getAttribute('lazyLoad', true, false);
         if (!lazyLoad) {
             const defaultChainId = this.getAttribute('defaultChainId', true);
@@ -250,7 +328,21 @@ export default class GovernanceVoting extends Module {
 
     private initializeWidgetConfig = async () => {
         setTimeout(async () => {
+            const chainId = this.chainId;
+            tokenStore.updateTokenMapData(chainId);
             await this.initWallet();
+            await this.setGovBalance();
+            this.updateBalanceStack();
+            await this.getVotingResult();
+            const connected = isClientWalletConnected();
+            if (!connected || !this.state.isRpcWalletConnected()) {
+                this.btnSubmitVote.caption = connected ? "Switch Network" : "Connect Wallet";
+                this.btnSubmitVote.enabled = true;
+            } else {
+                this.btnSubmitVote.enabled = !(this.isAddVoteBallotDisabled || !this.isVoteSelected);
+                this.btnSubmitVote.caption = "Submit Vote";
+            }
+            this.updateMainUI();
         });
     }
 
@@ -282,11 +374,108 @@ export default class GovernanceVoting extends Module {
         }
     }
 
+    private async setGovBalance() {
+        const wallet = this.state.getRpcWallet();
+        const selectedAddress = wallet.account.address;
+        this.stakeOf = await stakeOf(this.state, selectedAddress);
+        let freezeStake = await freezedStake(this.state, selectedAddress);
+        let freezeStakeAmount = freezeStake.amount;
+        this.stakedBalance = FormatUtils.formatNumberWithSeparators(freezeStakeAmount.plus(this.stakeOf).toFixed(4));
+        this.votingBalance = FormatUtils.formatNumberWithSeparators(this.stakeOf.toFixed(4));
+        this.freezeStakeAmount = freezeStakeAmount;
+        this.lockTill = freezeStake.lockTill;
+    }
+
+    private updateBalanceStack() {
+        const chainId = this.state.getChainId();
+        const govTokenSymbol = this.state.getGovToken(chainId)?.symbol || '';
+        const canDisplay = this.freezeStakeAmount.gt(0);
+        this.lblStakedBalance.caption = `${this.stakedBalance} ${govTokenSymbol}`;
+        this.lblFreezeStakeAmount.visible = canDisplay;
+        if (canDisplay) {
+            this.lblFreezeStakeAmount.caption = `${FormatUtils.formatNumberWithSeparators(this.freezeStakeAmount.toFixed(4))} ${govTokenSymbol} Available on ${moment(this.lockTill).format('MMM DD, YYYY')}`;
+        } else {
+            this.lblFreezeStakeAmount.caption = '';
+        }
+        this.lblVotingBalance.caption = `${this.votingBalance} ${govTokenSymbol}`;
+    }
+
+    private async getVotingResult() {
+        const votingResult = await getVotingResult(this.state, this.votingAddress);
+        if (votingResult) {
+            this.proposalType = votingResult.hasOwnProperty('executeParam') ? 'Executive' : 'Poll';
+            this.isCanExecute = votingResult.status == "waiting_execution";
+            this.expiry = votingResult.endTime;
+            this.voteStartTime = votingResult.voteStartTime;
+            this.lblTitle.caption = this.lblProposalDesc.caption = this.proposalType == 'Executive' ? votingResult.title : votingResult.name;
+            // this.remain= votingResults.remain;
+            this.voteOptions = votingResult.options;
+            if (this.proposalType === 'Executive') {
+                // this.executiveDelay = votingResults.executiveDelay;
+                if (votingResult.executeParam) {
+                    this.executeAction = executeActionMap[votingResult.executeParam.cmd] ? executeActionMap[votingResult.executeParam.cmd] : '';
+                    if (votingResult.executeParam.value) {
+                        this.executeValue = votingResult.executeParam.value;
+                    } else if (votingResult.executeParam.address) {
+                        this.executeValue = votingResult.executeParam.address;
+                    } else if (votingResult.executeParam.oracle) {
+                        this.executeValue = votingResult.executeParam.oracle;
+                    } else if (votingResult.executeParam.lotSize) {
+                        this.executeValue = votingResult.executeParam.lotSize;
+                        this.tokenAddress = votingResult.executeParam.token;
+                    }
+                }
+                this.executeDelaySeconds = votingResult.executeDelay.toNumber();
+                this.executeDelayDatetime = moment(votingResult.endTime)
+                    .add(this.executeDelaySeconds, 'seconds')
+                    .toDate();
+                this.votingQuorum = votingResult.quorum;
+            } else {
+                // Render Chart
+            }
+        }
+    }
+
+    private formatDate(value: Date) {
+        return moment(value).format('MMM. DD, YYYY') + ' at ' + moment(value).format('HH:mm')
+    }
+
+    private updateMainUI() {
+        const optionY = new BigNumber(this.voteOptions.Y?.value ?? 0);
+        const optionN = new BigNumber(this.voteOptions.N?.value ?? 0);
+        const votingQuorum = new BigNumber(this.votingQuorum);
+        this.inFavourBar.width = !votingQuorum.eq(0) ? `${optionY.div(votingQuorum).times(100).toFixed()}%` : 0;
+        this.lblVoteOptionY.caption = optionY.toFixed();
+        this.lblInFavourVotingQuorum.caption = votingQuorum.toFixed();
+        this.againstBar.width = !votingQuorum.eq(0) ? `${optionN.div(votingQuorum).times(100).toFixed()}%` : 0;
+        this.lblVoteOptionN.caption = optionN.toFixed();
+        this.lblAgainstVotingQuorum.caption = votingQuorum.toFixed();
+        this.lblVoteStartTime.caption = this.formatDate(this.voteStartTime);
+        this.lblVoteEndTime.caption = this.formatDate(this.expiry);
+        this.lblExecuteDeplay.caption = this.formatDate(this.executeDelayDatetime);
+        this.btnExecute.enabled = this.isCanExecute;
+        this.lblExecuteAction.caption = this.executeAction;
+        this.lblExecuteValue.caption = this.executeValue.toString();
+        this.lblVotingQuorum.caption = this.votingQuorum;
+        this.lblTokenAddress.caption = this.tokenAddress;
+        this.governanceVoteList.data = {
+            address: this.votingAddress,
+            expiry: this.expiry,
+            selectedVotes: this.selectedVoteTexts,
+            options: this.voteList
+        };
+    }
+
     private selectVote(index: number) { }
 
     private async handleExecute() { }
 
-    private async onSubmitVote() { }
+    private async onSubmitVote() {
+        if (!isClientWalletConnected() || !this.state.isRpcWalletConnected()) {
+            this.connectWallet();
+            return;
+        }
+    }
 
     render() {
         return (
@@ -424,24 +613,25 @@ export default class GovernanceVoting extends Module {
                                             caption="Date Created"
                                             font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
                                         ></i-label>
-                                        <i-label id="lblVoteStartTime"></i-label>
+                                        <i-label id="lblVoteStartTime" font={{ size: '1rem' }}></i-label>
                                     </i-vstack>
                                     <i-vstack width="100%" gap="0.5rem">
                                         <i-label
                                             caption="Vote Ends"
                                             font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
                                         ></i-label>
-                                        <i-label id="lblVoteEndTime"></i-label>
+                                        <i-label id="lblVoteEndTime" font={{ size: '1rem' }}></i-label>
                                     </i-vstack>
                                     <i-vstack width="100%" gap="0.5rem">
                                         <i-label
                                             caption="Execute Delay"
                                             font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
                                         ></i-label>
-                                        <i-label id="lblExecuteDeplay"></i-label>
+                                        <i-label id="lblExecuteDeplay" font={{ size: '1rem' }}></i-label>
                                     </i-vstack>
                                     <i-hstack width="100%" horizontalAlignment="end" verticalAlignment="center">
                                         <i-button
+                                            id="btnExecute"
                                             class="btn-os"
                                             height="auto"
                                             caption="Execute"
@@ -469,42 +659,42 @@ export default class GovernanceVoting extends Module {
                                             caption="Description"
                                             font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
                                         ></i-label>
-                                        <i-label id="lblProposalDesc"></i-label>
+                                        <i-label id="lblProposalDesc" font={{ size: '1rem' }}></i-label>
                                     </i-vstack>
                                     <i-vstack gap="0.5rem">
                                         <i-label
                                             caption="Action"
                                             font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
                                         ></i-label>
-                                        <i-label id="lblExecuteAction"></i-label>
+                                        <i-label id="lblExecuteAction" font={{ size: '1rem' }}></i-label>
                                     </i-vstack>
                                     <i-vstack gap="0.5rem">
                                         <i-label
                                             caption="Value" margin={{ top: '1rem' }}
                                             font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
                                         ></i-label>
-                                        <i-label id="lblExecuteValue"></i-label>
+                                        <i-label id="lblExecuteValue" font={{ size: '1rem' }}></i-label>
                                     </i-vstack>
                                     <i-vstack gap="0.5rem">
                                         <i-label
                                             caption="Quorum"
                                             font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
                                         ></i-label>
-                                        <i-label id="lblVotingQuorum"></i-label>
+                                        <i-label id="lblVotingQuorum" font={{ size: '1rem' }}></i-label>
                                     </i-vstack>
                                     <i-vstack gap="0.5rem" visible={false}>
                                         <i-label
                                             caption="Token Address"
                                             font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
                                         ></i-label>
-                                        <i-label id="lblTokenAddress" margin={{ top: '0.5rem' }}></i-label>
+                                        <i-label id="lblTokenAddress" font={{ size: '1rem' }} margin={{ top: '0.5rem' }}></i-label>
                                     </i-vstack>
                                     <i-vstack gap="0.5rem">
                                         <i-label
                                             caption="Your Vote"
                                             font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
                                         ></i-label>
-                                        <i-scom-governance-voting-vote-list id="voteList" onSelect={this.selectVote.bind(this)} />
+                                        <i-scom-governance-voting-vote-list id="governanceVoteList" onSelect={this.selectVote.bind(this)} />
                                     </i-vstack>
                                 </i-grid-layout>
                             </i-vstack>

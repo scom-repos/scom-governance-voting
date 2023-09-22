@@ -286,11 +286,32 @@ define("@scom/scom-governance-voting/index.css.ts", ["require", "exports", "@ijs
 define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/oswap-openswap-contract", "@scom/scom-token-list", "@scom/scom-governance-voting/store/index.ts"], function (require, exports, eth_wallet_2, oswap_openswap_contract_1, scom_token_list_2, index_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.getOptionVoted = exports.getVotingResult = exports.getVotingAddresses = void 0;
+    exports.getOptionVoted = exports.getVotingResult = exports.getVotingAddresses = exports.freezedStake = exports.stakeOf = void 0;
     function govTokenDecimals(state) {
         const chainId = state.getChainId();
         return state.getGovToken(chainId).decimals || 18;
     }
+    async function stakeOf(state, address) {
+        const wallet = state.getRpcWallet();
+        const chainId = state.getChainId();
+        const gov = state.getAddresses(chainId).OAXDEX_Governance;
+        const govContract = new oswap_openswap_contract_1.Contracts.OAXDEX_Governance(wallet, gov);
+        let result = await govContract.stakeOf(address);
+        result = eth_wallet_2.Utils.fromDecimals(result, govTokenDecimals(state));
+        return result;
+    }
+    exports.stakeOf = stakeOf;
+    async function freezedStake(state, address) {
+        const wallet = state.getRpcWallet();
+        const chainId = state.getChainId();
+        const gov = state.getAddresses(chainId).OAXDEX_Governance;
+        const govContract = new oswap_openswap_contract_1.Contracts.OAXDEX_Governance(wallet, gov);
+        let result = await govContract.freezedStake(address);
+        let minStakePeriod = await govContract.minStakePeriod();
+        let newResult = { amount: eth_wallet_2.Utils.fromDecimals(result.amount, govTokenDecimals(state)), timestamp: Number(result.timestamp) * 1000, lockTill: (Number(result.timestamp) + Number(minStakePeriod)) * 1000 };
+        return newResult;
+    }
+    exports.freezedStake = freezedStake;
     function decodeVotingParamsRawData(rawData) {
         const data = rawData.slice(2);
         let index = 0;
@@ -344,23 +365,23 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
             executeParamIndex += 64;
         }
         const struct = {
-            executor_: executor,
-            id_: id,
-            name_: name,
-            options_: options,
-            voteStartTime_: voteStartTime,
-            voteEndTime_: voteEndTime,
-            executeDelay_: executeDelay,
-            status_: status,
-            optionsWeight_: optionsWeight,
-            quorum_: quorum,
-            executeParam_: executeParam
+            executor: executor,
+            id: id,
+            name: name,
+            options: options,
+            voteStartTime: voteStartTime,
+            voteEndTime: voteEndTime,
+            executeDelay: executeDelay,
+            status: status,
+            optionsWeight: optionsWeight,
+            quorum: quorum,
+            executeParam: executeParam
         };
         return struct;
     }
     function parseVotingExecuteParam(params) {
         let executeParam;
-        let _executeParam = params.executeParam_;
+        let _executeParam = params.executeParam;
         if (_executeParam && Array.isArray(_executeParam) && _executeParam.length) {
             let cmd = eth_wallet_2.Utils.bytes32ToString(_executeParam[0]).replace(/\x00/gi, "");
             switch (cmd) {
@@ -384,18 +405,19 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
         }
         return executeParam;
     }
-    function getVotingTitle(result) {
+    function getVotingTitle(state, result) {
         var _a, _b, _c, _d;
         let title;
-        if (!result.addTitle)
+        if (!result.executeParam)
             return title;
         const token0 = result.executeParam.token0;
         const token1 = result.executeParam.token1;
-        let symbol0 = token0 ? (_b = (_a = scom_token_list_2.tokenStore.tokenMap[token0.toLowerCase()]) === null || _a === void 0 ? void 0 : _a.symbol) !== null && _b !== void 0 ? _b : '' : '';
-        let symbol1 = token1 ? (_d = (_c = scom_token_list_2.tokenStore.tokenMap[token1.toLowerCase()]) === null || _c === void 0 ? void 0 : _c.symbol) !== null && _d !== void 0 ? _d : '' : '';
+        const chainId = state.getChainId();
+        let tokenMap = scom_token_list_2.tokenStore.getTokenMapByChainId(chainId);
+        let symbol0 = token0 ? (_b = (_a = tokenMap[token0.toLowerCase()]) === null || _a === void 0 ? void 0 : _a.symbol) !== null && _b !== void 0 ? _b : '' : '';
+        let symbol1 = token1 ? (_d = (_c = tokenMap[token1.toLowerCase()]) === null || _c === void 0 ? void 0 : _c.symbol) !== null && _d !== void 0 ? _d : '' : '';
         switch (result.executeParam.cmd) {
             case "addOldOracleToNewPair":
-                ;
                 title = "Add Price Oracle for Pair " + symbol0 + "/" + symbol1;
                 break;
             case "setOracle":
@@ -406,45 +428,45 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
     }
     function parseVotingParams(state, params) {
         let result = {
-            executor: params.executor_,
-            address: params.address,
-            id: params.id_,
-            name: eth_wallet_2.Utils.bytes32ToString(params.name_),
+            executor: params.executor,
+            address: '',
+            id: params.id,
+            name: eth_wallet_2.Utils.bytes32ToString(params.name),
             options: {},
-            quorum: eth_wallet_2.Utils.fromDecimals(params.quorum_[0]).toFixed(),
-            voteStartTime: new Date(params.voteStartTime_ * 1000),
-            endTime: new Date(params.voteEndTime_ * 1000),
-            executeDelay: params.executeDelay_,
-            executed: params.status_[0],
-            vetoed: params.status_[1],
-            totalWeight: eth_wallet_2.Utils.fromDecimals(params.quorum_[2]).toFixed(),
-            threshold: eth_wallet_2.Utils.fromDecimals(params.quorum_[1]).toFixed(),
+            quorum: eth_wallet_2.Utils.fromDecimals(params.quorum[0]).toFixed(),
+            voteStartTime: new Date(params.voteStartTime.times(1000).toNumber()),
+            endTime: new Date(params.voteEndTime.times(1000).toNumber()),
+            executeDelay: params.executeDelay,
+            executed: params.status[0],
+            vetoed: params.status[1],
+            totalWeight: eth_wallet_2.Utils.fromDecimals(params.quorum[2]).toFixed(),
+            threshold: eth_wallet_2.Utils.fromDecimals(params.quorum[1]).toFixed(),
             remain: 0,
             quorumRemain: '0'
         };
-        let voteEndTime = Number(params.voteEndTime_);
+        let voteEndTime = params.voteEndTime.toNumber();
         let now = Math.ceil(Date.now() / 1000);
         let diff = Number(voteEndTime) - now;
         result.remain = diff > 0 ? diff : 0;
         let quorumRemain = new eth_wallet_2.BigNumber(result.quorum);
         let govDecimals = govTokenDecimals(state);
-        for (let i = 0; i < params.options_.length; i++) {
-            let weight = eth_wallet_2.Utils.fromDecimals(params.optionsWeight_[i], govDecimals);
-            result.options[eth_wallet_2.Utils.bytes32ToString(params.options_[i])] = weight;
+        for (let i = 0; i < params.options.length; i++) {
+            let weight = eth_wallet_2.Utils.fromDecimals(params.optionsWeight[i], govDecimals);
+            result.options[eth_wallet_2.Utils.bytes32ToString(params.options[i])] = weight;
             quorumRemain = quorumRemain.minus(weight);
         }
         result.quorumRemain = quorumRemain.lt(0) ? '0' : quorumRemain.toFixed();
-        if (params.executeParam_ && Array.isArray(params.executeParam_) && params.executeParam_.length) {
-            let executeDelay = Number(params.executeDelay_);
+        if (params.executeParam && Array.isArray(params.executeParam) && params.executeParam.length) {
+            let executeDelay = Number(params.executeDelay);
             diff = (voteEndTime + executeDelay) - now;
-            if (result.vetoed_)
+            if (result.vetoed)
                 result.veto = true;
-            else if (params.executed_)
+            else if (params.executed)
                 result.executed = true;
             else
                 result.executiveDelay = diff > 0 ? diff : 0;
-            result.majorityPassed = new eth_wallet_2.BigNumber(params.optionsWeight_[0]).gt(params.optionsWeight_[1]);
-            result.thresholdPassed = new eth_wallet_2.BigNumber(params.optionsWeight_[0]).div(new eth_wallet_2.BigNumber(params.optionsWeight_[0]).plus(params.optionsWeight_[1])).gt(result.threshold);
+            result.majorityPassed = new eth_wallet_2.BigNumber(params.optionsWeight[0]).gt(params.optionsWeight[1]);
+            result.thresholdPassed = new eth_wallet_2.BigNumber(params.optionsWeight[0]).div(new eth_wallet_2.BigNumber(params.optionsWeight[0]).plus(params.optionsWeight[1])).gt(result.threshold);
             if (result.vetoed) {
                 result.status = "vetoed";
             }
@@ -465,7 +487,7 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
             }
             result.executeParam = parseVotingExecuteParam(params);
         }
-        let title = getVotingTitle(result);
+        let title = getVotingTitle(state, result);
         if (title)
             result.title = title;
         return result;
@@ -678,10 +700,25 @@ define("@scom/scom-governance-voting/voteList.tsx", ["require", "exports", "@ijs
     ], GovernanceVoteList);
     exports.GovernanceVoteList = GovernanceVoteList;
 });
-define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/components", "@scom/scom-governance-voting/store/index.ts", "@scom/scom-governance-voting/assets.ts", "@scom/scom-governance-voting/data.json.ts", "@scom/scom-governance-voting/index.css.ts", "@ijstech/eth-wallet"], function (require, exports, components_5, index_2, assets_1, data_json_1, index_css_2, eth_wallet_4) {
+define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/components", "@scom/scom-governance-voting/store/index.ts", "@scom/scom-governance-voting/assets.ts", "@scom/scom-governance-voting/data.json.ts", "@scom/scom-governance-voting/index.css.ts", "@ijstech/eth-wallet", "@scom/scom-governance-voting/api.ts", "@scom/scom-token-list"], function (require, exports, components_5, index_2, assets_1, data_json_1, index_css_2, eth_wallet_4, api_2, scom_token_list_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const Theme = components_5.Styles.Theme.ThemeVars;
+    const executeActionMap = {
+        setTradeFee: 'Set Trade Fee',
+        setProtocolFee: 'Set Protocol Fee',
+        setOracleProtocolFee: 'Set Oracle Protocol Fee',
+        setOracleTradeFee: 'Set Oracle Trade Fee',
+        setProtocolFeeTo: 'Set Protocol Fee Address',
+        setMinLotSize: 'Set Min Lot Size',
+        setVotingConfig: 'Set Voting Config',
+        setMaxAdmin: 'Set Max Admin',
+        addAdmin: 'Add Admin',
+        removeAdmin: 'Remove Admin',
+        setSecurityScoreOracle: 'Set Security Score Oracle',
+        setOracle: 'Modify Oracle',
+        setMinStakePeriod: 'Set Minimum Stake Period',
+    };
     let GovernanceVoting = class GovernanceVoting extends components_5.Module {
         constructor() {
             super(...arguments);
@@ -694,6 +731,18 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 networks: []
             };
             this.tag = {};
+            this.lockTill = 0;
+            this.selectedVoteTexts = [];
+            this.isVoteSelected = false;
+            this.votingQuorum = '0';
+            this.executeAction = '';
+            this.executeValue = '0';
+            this.tokenAddress = '';
+            this.executeDelaySeconds = 0;
+            this.stakedBalance = '0';
+            this.votingBalance = '0';
+            this.freezeStakeAmount = new eth_wallet_4.BigNumber(0);
+            this.stakeOf = new eth_wallet_4.BigNumber(0);
             this.initWallet = async () => {
                 try {
                     await eth_wallet_4.Wallet.getClientInstance().init();
@@ -706,7 +755,22 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             };
             this.initializeWidgetConfig = async () => {
                 setTimeout(async () => {
+                    const chainId = this.chainId;
+                    scom_token_list_3.tokenStore.updateTokenMapData(chainId);
                     await this.initWallet();
+                    await this.setGovBalance();
+                    this.updateBalanceStack();
+                    await this.getVotingResult();
+                    const connected = (0, index_2.isClientWalletConnected)();
+                    if (!connected || !this.state.isRpcWalletConnected()) {
+                        this.btnSubmitVote.caption = connected ? "Switch Network" : "Connect Wallet";
+                        this.btnSubmitVote.enabled = true;
+                    }
+                    else {
+                        this.btnSubmitVote.enabled = !(this.isAddVoteBallotDisabled || !this.isVoteSelected);
+                        this.btnSubmitVote.caption = "Submit Vote";
+                    }
+                    this.updateMainUI();
                 });
             };
             this.showResultMessage = (status, content) => {
@@ -768,6 +832,42 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         set showHeader(value) {
             this._data.showHeader = value;
         }
+        get votingAddress() {
+            return this._data.votingAddress;
+        }
+        get isExecutive() {
+            return this.proposalType === 'Executive';
+        }
+        get voteList() {
+            if (this.isExecutive) {
+                return [
+                    {
+                        optionText: 'In Favour',
+                        optionValue: 'Y',
+                    },
+                    {
+                        optionText: 'Against',
+                        optionValue: 'N',
+                    },
+                ];
+            }
+            else {
+                return this.voteOptions
+                    ? Object.keys(this.voteOptions).map((v, i) => {
+                        return {
+                            optionText: v,
+                            optionValue: i,
+                            optionWeight: this.voteOptions[v],
+                        };
+                    })
+                    : [];
+            }
+        }
+        get isAddVoteBallotDisabled() {
+            if ((0, components_5.moment)(this.expiry).isAfter((0, components_5.moment)()))
+                return Number(this.stakeOf) > 0 ? false : true;
+            return true;
+        }
         removeRpcWalletEvents() {
             const rpcWallet = this.state.getRpcWallet();
             if (rpcWallet)
@@ -784,7 +884,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.isReadyCallbackQueued = true;
             super.init();
             this.state = new index_2.State(data_json_1.default);
-            this.voteList.state = this.state;
+            this.governanceVoteList.state = this.state;
             const lazyLoad = this.getAttribute('lazyLoad', true, false);
             if (!lazyLoad) {
                 const defaultChainId = this.getAttribute('defaultChainId', true);
@@ -880,9 +980,108 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         async refreshUI() {
             await this.initializeWidgetConfig();
         }
+        async setGovBalance() {
+            const wallet = this.state.getRpcWallet();
+            const selectedAddress = wallet.account.address;
+            this.stakeOf = await (0, api_2.stakeOf)(this.state, selectedAddress);
+            let freezeStake = await (0, api_2.freezedStake)(this.state, selectedAddress);
+            let freezeStakeAmount = freezeStake.amount;
+            this.stakedBalance = components_5.FormatUtils.formatNumberWithSeparators(freezeStakeAmount.plus(this.stakeOf).toFixed(4));
+            this.votingBalance = components_5.FormatUtils.formatNumberWithSeparators(this.stakeOf.toFixed(4));
+            this.freezeStakeAmount = freezeStakeAmount;
+            this.lockTill = freezeStake.lockTill;
+        }
+        updateBalanceStack() {
+            var _a;
+            const chainId = this.state.getChainId();
+            const govTokenSymbol = ((_a = this.state.getGovToken(chainId)) === null || _a === void 0 ? void 0 : _a.symbol) || '';
+            const canDisplay = this.freezeStakeAmount.gt(0);
+            this.lblStakedBalance.caption = `${this.stakedBalance} ${govTokenSymbol}`;
+            this.lblFreezeStakeAmount.visible = canDisplay;
+            if (canDisplay) {
+                this.lblFreezeStakeAmount.caption = `${components_5.FormatUtils.formatNumberWithSeparators(this.freezeStakeAmount.toFixed(4))} ${govTokenSymbol} Available on ${(0, components_5.moment)(this.lockTill).format('MMM DD, YYYY')}`;
+            }
+            else {
+                this.lblFreezeStakeAmount.caption = '';
+            }
+            this.lblVotingBalance.caption = `${this.votingBalance} ${govTokenSymbol}`;
+        }
+        async getVotingResult() {
+            const votingResult = await (0, api_2.getVotingResult)(this.state, this.votingAddress);
+            if (votingResult) {
+                this.proposalType = votingResult.hasOwnProperty('executeParam') ? 'Executive' : 'Poll';
+                this.isCanExecute = votingResult.status == "waiting_execution";
+                this.expiry = votingResult.endTime;
+                this.voteStartTime = votingResult.voteStartTime;
+                this.lblTitle.caption = this.lblProposalDesc.caption = this.proposalType == 'Executive' ? votingResult.title : votingResult.name;
+                // this.remain= votingResults.remain;
+                this.voteOptions = votingResult.options;
+                if (this.proposalType === 'Executive') {
+                    // this.executiveDelay = votingResults.executiveDelay;
+                    if (votingResult.executeParam) {
+                        this.executeAction = executeActionMap[votingResult.executeParam.cmd] ? executeActionMap[votingResult.executeParam.cmd] : '';
+                        if (votingResult.executeParam.value) {
+                            this.executeValue = votingResult.executeParam.value;
+                        }
+                        else if (votingResult.executeParam.address) {
+                            this.executeValue = votingResult.executeParam.address;
+                        }
+                        else if (votingResult.executeParam.oracle) {
+                            this.executeValue = votingResult.executeParam.oracle;
+                        }
+                        else if (votingResult.executeParam.lotSize) {
+                            this.executeValue = votingResult.executeParam.lotSize;
+                            this.tokenAddress = votingResult.executeParam.token;
+                        }
+                    }
+                    this.executeDelaySeconds = votingResult.executeDelay.toNumber();
+                    this.executeDelayDatetime = (0, components_5.moment)(votingResult.endTime)
+                        .add(this.executeDelaySeconds, 'seconds')
+                        .toDate();
+                    this.votingQuorum = votingResult.quorum;
+                }
+                else {
+                    // Render Chart
+                }
+            }
+        }
+        formatDate(value) {
+            return (0, components_5.moment)(value).format('MMM. DD, YYYY') + ' at ' + (0, components_5.moment)(value).format('HH:mm');
+        }
+        updateMainUI() {
+            var _a, _b, _c, _d;
+            const optionY = new eth_wallet_4.BigNumber((_b = (_a = this.voteOptions.Y) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : 0);
+            const optionN = new eth_wallet_4.BigNumber((_d = (_c = this.voteOptions.N) === null || _c === void 0 ? void 0 : _c.value) !== null && _d !== void 0 ? _d : 0);
+            const votingQuorum = new eth_wallet_4.BigNumber(this.votingQuorum);
+            this.inFavourBar.width = !votingQuorum.eq(0) ? `${optionY.div(votingQuorum).times(100).toFixed()}%` : 0;
+            this.lblVoteOptionY.caption = optionY.toFixed();
+            this.lblInFavourVotingQuorum.caption = votingQuorum.toFixed();
+            this.againstBar.width = !votingQuorum.eq(0) ? `${optionN.div(votingQuorum).times(100).toFixed()}%` : 0;
+            this.lblVoteOptionN.caption = optionN.toFixed();
+            this.lblAgainstVotingQuorum.caption = votingQuorum.toFixed();
+            this.lblVoteStartTime.caption = this.formatDate(this.voteStartTime);
+            this.lblVoteEndTime.caption = this.formatDate(this.expiry);
+            this.lblExecuteDeplay.caption = this.formatDate(this.executeDelayDatetime);
+            this.btnExecute.enabled = this.isCanExecute;
+            this.lblExecuteAction.caption = this.executeAction;
+            this.lblExecuteValue.caption = this.executeValue.toString();
+            this.lblVotingQuorum.caption = this.votingQuorum;
+            this.lblTokenAddress.caption = this.tokenAddress;
+            this.governanceVoteList.data = {
+                address: this.votingAddress,
+                expiry: this.expiry,
+                selectedVotes: this.selectedVoteTexts,
+                options: this.voteList
+            };
+        }
         selectVote(index) { }
         async handleExecute() { }
-        async onSubmitVote() { }
+        async onSubmitVote() {
+            if (!(0, index_2.isClientWalletConnected)() || !this.state.isRpcWalletConnected()) {
+                this.connectWallet();
+                return;
+            }
+        }
         render() {
             return (this.$render("i-scom-dapp-container", { id: "dappContainer" },
                 this.$render("i-panel", { class: index_css_2.default, background: { color: Theme.background.main } },
@@ -931,36 +1130,36 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                                 this.$render("i-stack", { class: "custom-box", minHeight: 100, background: { color: 'rgba(255, 255, 255, 0.13)' }, padding: { top: 10, bottom: 10, left: 20, right: 20 }, border: { radius: 15, width: '1px', style: 'solid', color: '#fff' }, gap: "1rem", direction: "horizontal", mediaQueries: [{ maxWidth: '767px', properties: { direction: 'vertical' } }] },
                                     this.$render("i-vstack", { width: "100%", gap: "0.5rem" },
                                         this.$render("i-label", { caption: "Date Created", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
-                                        this.$render("i-label", { id: "lblVoteStartTime" })),
+                                        this.$render("i-label", { id: "lblVoteStartTime", font: { size: '1rem' } })),
                                     this.$render("i-vstack", { width: "100%", gap: "0.5rem" },
                                         this.$render("i-label", { caption: "Vote Ends", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
-                                        this.$render("i-label", { id: "lblVoteEndTime" })),
+                                        this.$render("i-label", { id: "lblVoteEndTime", font: { size: '1rem' } })),
                                     this.$render("i-vstack", { width: "100%", gap: "0.5rem" },
                                         this.$render("i-label", { caption: "Execute Delay", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
-                                        this.$render("i-label", { id: "lblExecuteDeplay" })),
+                                        this.$render("i-label", { id: "lblExecuteDeplay", font: { size: '1rem' } })),
                                     this.$render("i-hstack", { width: "100%", horizontalAlignment: "end", verticalAlignment: "center" },
-                                        this.$render("i-button", { class: "btn-os", height: "auto", caption: "Execute", enabled: false, padding: { top: '0.35rem', bottom: '0.35rem', left: '1.5rem', right: '1.5rem' }, onClick: this.handleExecute.bind(this) }))),
+                                        this.$render("i-button", { id: "btnExecute", class: "btn-os", height: "auto", caption: "Execute", enabled: false, padding: { top: '0.35rem', bottom: '0.35rem', left: '1.5rem', right: '1.5rem' }, onClick: this.handleExecute.bind(this) }))),
                                 this.$render("i-grid-layout", { width: "100%", minHeight: 100, background: { color: 'rgba(255, 255, 255, 0.13)' }, padding: { top: 10, bottom: 10, left: 20, right: 20 }, border: { radius: 15, width: '1px', style: 'solid', color: '#fff' }, gap: { column: 10, row: '1rem' }, templateColumns: ['repeat(2, 1fr)'], templateRows: ['repeat(3, auto)'], verticalAlignment: "stretch", mediaQueries: [
                                         { maxWidth: '767px', properties: { templateColumns: ['repeat(1, 1fr)'], templateRows: ['auto'] } }
                                     ] },
                                     this.$render("i-vstack", { gap: "0.5rem" },
                                         this.$render("i-label", { caption: "Description", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
-                                        this.$render("i-label", { id: "lblProposalDesc" })),
+                                        this.$render("i-label", { id: "lblProposalDesc", font: { size: '1rem' } })),
                                     this.$render("i-vstack", { gap: "0.5rem" },
                                         this.$render("i-label", { caption: "Action", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
-                                        this.$render("i-label", { id: "lblExecuteAction" })),
+                                        this.$render("i-label", { id: "lblExecuteAction", font: { size: '1rem' } })),
                                     this.$render("i-vstack", { gap: "0.5rem" },
                                         this.$render("i-label", { caption: "Value", margin: { top: '1rem' }, font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
-                                        this.$render("i-label", { id: "lblExecuteValue" })),
+                                        this.$render("i-label", { id: "lblExecuteValue", font: { size: '1rem' } })),
                                     this.$render("i-vstack", { gap: "0.5rem" },
                                         this.$render("i-label", { caption: "Quorum", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
-                                        this.$render("i-label", { id: "lblVotingQuorum" })),
+                                        this.$render("i-label", { id: "lblVotingQuorum", font: { size: '1rem' } })),
                                     this.$render("i-vstack", { gap: "0.5rem", visible: false },
                                         this.$render("i-label", { caption: "Token Address", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
-                                        this.$render("i-label", { id: "lblTokenAddress", margin: { top: '0.5rem' } })),
+                                        this.$render("i-label", { id: "lblTokenAddress", font: { size: '1rem' }, margin: { top: '0.5rem' } })),
                                     this.$render("i-vstack", { gap: "0.5rem" },
                                         this.$render("i-label", { caption: "Your Vote", font: { size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true } }),
-                                        this.$render("i-scom-governance-voting-vote-list", { id: "voteList", onSelect: this.selectVote.bind(this) })))),
+                                        this.$render("i-scom-governance-voting-vote-list", { id: "governanceVoteList", onSelect: this.selectVote.bind(this) })))),
                             this.$render("i-vstack", { width: "100%", padding: { left: "1rem", right: "1rem" } },
                                 this.$render("i-button", { id: 'btnSubmitVote', class: 'btn-os', height: 'auto', caption: "Submit Vote", padding: { top: '0.75rem', bottom: '0.75rem', left: '1.5rem', right: '1.5rem' }, border: { radius: 5 }, font: { weight: 600 }, rightIcon: { spin: true, visible: false }, enabled: false, onClick: this.onSubmitVote.bind(this) })))),
                     this.$render("i-scom-tx-status-modal", { id: "txStatusModal" }),

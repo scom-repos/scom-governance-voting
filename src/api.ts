@@ -1,12 +1,33 @@
 import { BigNumber, Utils } from "@ijstech/eth-wallet";
 import { Contracts } from "@scom/oswap-openswap-contract";
 import { ITokenObject, tokenStore } from "@scom/scom-token-list";
-import { IExecuteParam } from "./interface";
+import { IExecuteParam, IVotingParams, IVotingResult } from "./interface";
 import { getWETH, State } from "./store/index";
 
 function govTokenDecimals(state: State) {
     const chainId = state.getChainId();
     return state.getGovToken(chainId).decimals || 18
+}
+
+export async function stakeOf(state: State, address: string) {
+    const wallet = state.getRpcWallet();
+    const chainId = state.getChainId();
+    const gov = state.getAddresses(chainId).OAXDEX_Governance;
+    const govContract = new Contracts.OAXDEX_Governance(wallet, gov);
+    let result = await govContract.stakeOf(address);
+    result = Utils.fromDecimals(result, govTokenDecimals(state));
+    return result;
+}
+
+export async function freezedStake(state: State, address: string) {
+    const wallet = state.getRpcWallet();
+    const chainId = state.getChainId();
+    const gov = state.getAddresses(chainId).OAXDEX_Governance;
+    const govContract = new Contracts.OAXDEX_Governance(wallet, gov);
+    let result = await govContract.freezedStake(address);
+    let minStakePeriod = await govContract.minStakePeriod();
+    let newResult = { amount: Utils.fromDecimals(result.amount, govTokenDecimals(state)), timestamp: Number(result.timestamp) * 1000, lockTill: (Number(result.timestamp) + Number(minStakePeriod)) * 1000 };
+    return newResult;
 }
 
 function decodeVotingParamsRawData(rawData: string) {
@@ -74,24 +95,24 @@ function decodeVotingParamsRawData(rawData: string) {
     }
 
     const struct = {
-        executor_: executor,
-        id_: id,
-        name_: name,
-        options_: options,
-        voteStartTime_: voteStartTime,
-        voteEndTime_: voteEndTime,
-        executeDelay_: executeDelay,
-        status_: status,
-        optionsWeight_: optionsWeight,
-        quorum_: quorum,
-        executeParam_: executeParam
+        executor: executor,
+        id: id,
+        name: name,
+        options: options,
+        voteStartTime: voteStartTime,
+        voteEndTime: voteEndTime,
+        executeDelay: executeDelay,
+        status: status,
+        optionsWeight: optionsWeight,
+        quorum: quorum,
+        executeParam: executeParam
     };
     return struct;
 }
 
-function parseVotingExecuteParam(params: any) {
+function parseVotingExecuteParam(params: IVotingParams) {
     let executeParam: IExecuteParam;
-    let _executeParam = params.executeParam_;
+    let _executeParam = params.executeParam;
     if (_executeParam && Array.isArray(_executeParam) && _executeParam.length) {
         let cmd = Utils.bytes32ToString(_executeParam[0]).replace(/\x00/gi, "");
         switch (cmd) {
@@ -116,15 +137,17 @@ function parseVotingExecuteParam(params: any) {
     return executeParam;
 }
 
-function getVotingTitle(result: any) {
+function getVotingTitle(state: State, result: any) {
     let title: string;
-    if (!result.addTitle) return title;
+    if (!result.executeParam) return title;
     const token0 = result.executeParam.token0;
     const token1 = result.executeParam.token1;
-    let symbol0 = token0 ? tokenStore.tokenMap[token0.toLowerCase()]?.symbol ?? '' : '';
-    let symbol1 = token1 ? tokenStore.tokenMap[token1.toLowerCase()]?.symbol ?? '' : '';
+    const chainId = state.getChainId();
+    let tokenMap = tokenStore.getTokenMapByChainId(chainId);
+    let symbol0 = token0 ? tokenMap[token0.toLowerCase()]?.symbol ?? '' : '';
+    let symbol1 = token1 ? tokenMap[token1.toLowerCase()]?.symbol ?? '' : '';
     switch (result.executeParam.cmd) {
-        case "addOldOracleToNewPair":;
+        case "addOldOracleToNewPair":
           title = "Add Price Oracle for Pair " + symbol0 + "/" + symbol1;
           break;
         case "setOracle":
@@ -134,49 +157,49 @@ function getVotingTitle(result: any) {
     return title;
 }
 
-function parseVotingParams(state: State, params: any) {
-    let result: any = {
-        executor: params.executor_,
-        address: params.address,
-        id: params.id_,
-        name: Utils.bytes32ToString(params.name_),
+function parseVotingParams(state: State, params: IVotingParams) {
+    let result: IVotingResult = {
+        executor: params.executor,
+        address: '',
+        id: params.id,
+        name: Utils.bytes32ToString(params.name),
         options: {},
-        quorum: Utils.fromDecimals(params.quorum_[0]).toFixed(),
-        voteStartTime: new Date(params.voteStartTime_ * 1000),
-        endTime: new Date(params.voteEndTime_ * 1000),
-        executeDelay: params.executeDelay_,
-        executed: params.status_[0],
-        vetoed: params.status_[1],
-        totalWeight: Utils.fromDecimals(params.quorum_[2]).toFixed(),
-        threshold: Utils.fromDecimals(params.quorum_[1]).toFixed(),
+        quorum: Utils.fromDecimals(params.quorum[0]).toFixed(),
+        voteStartTime: new Date(params.voteStartTime.times(1000).toNumber()),
+        endTime: new Date(params.voteEndTime.times(1000).toNumber()),
+        executeDelay: params.executeDelay,
+        executed: params.status[0],
+        vetoed: params.status[1],
+        totalWeight: Utils.fromDecimals(params.quorum[2]).toFixed(),
+        threshold: Utils.fromDecimals(params.quorum[1]).toFixed(),
         remain: 0,
         quorumRemain: '0'
     };
-    let voteEndTime = Number(params.voteEndTime_);
+    let voteEndTime = params.voteEndTime.toNumber();
     let now = Math.ceil(Date.now() / 1000);
     let diff = Number(voteEndTime) - now;
     result.remain = diff > 0 ? diff : 0;
     let quorumRemain = new BigNumber(result.quorum);
     let govDecimals = govTokenDecimals(state);
-    for (let i = 0; i < params.options_.length; i++) {
-        let weight = Utils.fromDecimals(params.optionsWeight_[i], govDecimals);
-        result.options[Utils.bytes32ToString(params.options_[i])] = weight;
+    for (let i = 0; i < params.options.length; i++) {
+        let weight = Utils.fromDecimals(params.optionsWeight[i], govDecimals);
+        result.options[Utils.bytes32ToString(params.options[i])] = weight;
         quorumRemain = quorumRemain.minus(weight);
     }
     result.quorumRemain = quorumRemain.lt(0) ? '0' : quorumRemain.toFixed();
 
-    if (params.executeParam_ && Array.isArray(params.executeParam_) && params.executeParam_.length) {
-        let executeDelay = Number(params.executeDelay_);
+    if (params.executeParam && Array.isArray(params.executeParam) && params.executeParam.length) {
+        let executeDelay = Number(params.executeDelay);
         diff = (voteEndTime + executeDelay) - now;
-        if (result.vetoed_)
+        if (result.vetoed)
             result.veto = true;
-        else if (params.executed_)
+        else if (params.executed)
             result.executed = true;
         else
             result.executiveDelay = diff > 0 ? diff : 0
 
-        result.majorityPassed = new BigNumber(params.optionsWeight_[0]).gt(params.optionsWeight_[1]);
-        result.thresholdPassed = new BigNumber(params.optionsWeight_[0]).div(new BigNumber(params.optionsWeight_[0]).plus(params.optionsWeight_[1])).gt(result.threshold);
+        result.majorityPassed = new BigNumber(params.optionsWeight[0]).gt(params.optionsWeight[1]);
+        result.thresholdPassed = new BigNumber(params.optionsWeight[0]).div(new BigNumber(params.optionsWeight[0]).plus(params.optionsWeight[1])).gt(result.threshold);
 
         if (result.vetoed) {
             result.status = "vetoed";
@@ -193,7 +216,7 @@ function parseVotingParams(state: State, params: any) {
         }
         result.executeParam = parseVotingExecuteParam(params);
     }
-    let title = getVotingTitle(result);
+    let title = getVotingTitle(state, result);
     if (title) result.title = title;
 
     return result;

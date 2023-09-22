@@ -2,8 +2,10 @@
 /// <reference path="@ijstech/eth-wallet/index.d.ts" />
 /// <amd-module name="@scom/scom-governance-voting/interface.ts" />
 declare module "@scom/scom-governance-voting/interface.ts" {
+    import { BigNumber } from "@ijstech/eth-wallet";
     import { INetworkConfig } from "@scom/scom-network-picker";
     import { IWalletPlugin } from "@scom/scom-wallet-modal";
+    export type ProposalType = 'Executive' | 'Poll';
     export interface IGovernanceVoting {
         chainId: number;
         tokenFrom: string;
@@ -16,9 +18,58 @@ declare module "@scom/scom-governance-voting/interface.ts" {
     }
     export interface IExecuteParam {
         cmd: string;
-        token0: string;
-        token1: string;
-        oracle: string;
+        token0?: string;
+        token1?: string;
+        oracle?: string;
+        value?: any;
+        address?: string;
+        lotSize?: number;
+        token?: string;
+    }
+    export interface IVotingParams {
+        executor: string;
+        id: BigNumber;
+        name: string;
+        options: string[];
+        voteStartTime: BigNumber;
+        voteEndTime: BigNumber;
+        executeDelay: BigNumber;
+        status: boolean[];
+        optionsWeight: BigNumber[];
+        quorum: BigNumber[];
+        executeParam: string[];
+        executed?: boolean;
+    }
+    export interface IVotingResult {
+        executor: string;
+        id: BigNumber;
+        address: string;
+        name: string;
+        options: {
+            [key: string]: BigNumber;
+        };
+        quorum: string;
+        voteStartTime: Date;
+        endTime: Date;
+        executeDelay: BigNumber;
+        executed: boolean;
+        vetoed: boolean;
+        totalWeight: string;
+        threshold: string;
+        remain: number;
+        quorumRemain: string;
+        veto?: boolean;
+        executiveDelay?: number;
+        majorityPassed?: boolean;
+        thresholdPassed?: boolean;
+        status?: string;
+        executeParam?: IExecuteParam;
+        title?: string;
+    }
+    export interface IOption {
+        optionText: string;
+        optionValue: string | number;
+        optionWeight?: any;
     }
 }
 /// <amd-module name="@scom/scom-governance-voting/store/core.ts" />
@@ -101,10 +152,18 @@ declare module "@scom/scom-governance-voting/index.css.ts" {
 }
 /// <amd-module name="@scom/scom-governance-voting/api.ts" />
 declare module "@scom/scom-governance-voting/api.ts" {
+    import { BigNumber } from "@ijstech/eth-wallet";
     import { ITokenObject } from "@scom/scom-token-list";
+    import { IVotingResult } from "@scom/scom-governance-voting/interface.ts";
     import { State } from "@scom/scom-governance-voting/store/index.ts";
+    export function stakeOf(state: State, address: string): Promise<BigNumber>;
+    export function freezedStake(state: State, address: string): Promise<{
+        amount: BigNumber;
+        timestamp: number;
+        lockTill: number;
+    }>;
     export function getVotingAddresses(state: State, chainId: number, tokenA: ITokenObject, tokenB: ITokenObject): Promise<string[]>;
-    export function getVotingResult(state: State, votingAddress: string): Promise<any>;
+    export function getVotingResult(state: State, votingAddress: string): Promise<IVotingResult>;
     export function getOptionVoted(state: State, votingAddress: string, address: string): Promise<any>;
 }
 /// <amd-module name="@scom/scom-governance-voting/voteList.tsx" />
@@ -198,18 +257,37 @@ declare module "@scom/scom-governance-voting" {
         private lblVoteStartTime;
         private lblVoteEndTime;
         private lblExecuteDeplay;
+        private btnExecute;
         private lblProposalDesc;
         private lblExecuteAction;
         private lblExecuteValue;
         private lblVotingQuorum;
         private lblTokenAddress;
-        private voteList;
+        private governanceVoteList;
         private btnSubmitVote;
         private txStatusModal;
         private mdWallet;
         private state;
         private _data;
         tag: any;
+        private lockTill;
+        private selectedVoteTexts;
+        private isVoteSelected;
+        private proposalType;
+        private voteOptions;
+        private votingQuorum;
+        private executeAction;
+        private executeValue;
+        private tokenAddress;
+        private executeDelaySeconds;
+        private voteStartTime;
+        private executeDelayDatetime;
+        private stakedBalance;
+        private votingBalance;
+        private freezeStakeAmount;
+        private stakeOf;
+        private expiry;
+        private isCanExecute;
         private get chainId();
         get defaultChainId(): number;
         set defaultChainId(value: number);
@@ -219,6 +297,10 @@ declare module "@scom/scom-governance-voting" {
         set networks(value: INetworkConfig[]);
         get showHeader(): boolean;
         set showHeader(value: boolean);
+        get votingAddress(): string;
+        private get isExecutive();
+        private get voteList();
+        private get isAddVoteBallotDisabled();
         removeRpcWalletEvents(): void;
         onHide(): void;
         isEmptyData(value: IGovernanceVoting): boolean;
@@ -237,6 +319,11 @@ declare module "@scom/scom-governance-voting" {
         private initializeWidgetConfig;
         private showResultMessage;
         private connectWallet;
+        private setGovBalance;
+        private updateBalanceStack;
+        private getVotingResult;
+        private formatDate;
+        private updateMainUI;
         private selectVote;
         private handleExecute;
         private onSubmitVote;
