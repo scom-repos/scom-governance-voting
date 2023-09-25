@@ -508,6 +508,8 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
             if (!new eth_wallet_2.BigNumber(tokens[0].address.toLowerCase()).lt(tokens[1].address.toLowerCase())) {
                 tokens = [tokens[1], tokens[0]];
             }
+            const token0Address = tokens[0].address.toLowerCase();
+            const token1Address = tokens[1].address.toLowerCase();
             let votingContract = new oswap_openswap_contract_1.Contracts.OAXDEX_VotingContract(wallet);
             const getParamsTxData = wallet.encodeFunctionCall(votingContract, 'getParams', []);
             const getParamsResult = await wallet.multiCall(votings.map(v => {
@@ -516,12 +518,12 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
                     data: getParamsTxData
                 };
             }));
-            for (let i = 0; i < votings.length; i++) {
+            for (let i = votings.length - 1; i >= 0; i--) {
                 let result = decodeVotingParamsRawData(getParamsResult.results[i]);
                 let executeParam = parseVotingExecuteParam(result);
                 if (!executeParam)
                     continue;
-                if (executeParam.token0 === tokens[0].address && executeParam.token1 === tokens[1].address) {
+                if (executeParam.token0 === token0Address && executeParam.token1 === token1Address) {
                     addresses.push(votings[i]);
                 }
             }
@@ -890,10 +892,12 @@ define("@scom/scom-governance-voting/formSchema.ts", ["require", "exports", "@ij
                         },
                         getData: (control) => {
                             var _a;
-                            return Number((_a = control.selectedItem) === null || _a === void 0 ? void 0 : _a.value);
+                            return (_a = control.selectedItem) === null || _a === void 0 ? void 0 : _a.value;
                         },
                         setData: async (control, value) => {
+                            var _a;
                             const data = getData();
+                            const chainId = (_a = networkPicker === null || networkPicker === void 0 ? void 0 : networkPicker.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
                             if (data.chainId && data.tokenFrom != null && data.tokenTo != null) {
                                 const tokens = scom_token_list_3.tokenStore.getTokenList(data.chainId);
                                 let tokenFrom = tokens.find(token => { var _a; return ((_a = token.address) !== null && _a !== void 0 ? _a : "") == data.tokenFrom; });
@@ -1144,6 +1148,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         }
         _getActions(category) {
             const formSchema = (0, formSchema_1.getFormSchema)(this.state);
+            const rpcWallet = this.state.getRpcWallet();
             const actions = [];
             if (category && category !== 'offers') {
                 actions.push({
@@ -1198,7 +1203,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     },
                     userInputDataSchema: formSchema.dataSchema,
                     userInputUISchema: formSchema.uiSchema,
-                    customControls: formSchema.customControls()
+                    customControls: formSchema.customControls(rpcWallet === null || rpcWallet === void 0 ? void 0 : rpcWallet.instanceId, this.getData.bind(this))
                 });
             }
             return actions;

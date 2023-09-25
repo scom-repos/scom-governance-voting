@@ -275,7 +275,7 @@ declare module "@scom/scom-governance-voting/formSchema.ts" {
             };
             "#/properties/votingAddress": {
                 render: () => ComboBox;
-                getData: (control: ComboBox) => number;
+                getData: (control: ComboBox) => string;
                 setData: (control: ComboBox, value: string) => Promise<void>;
             };
         };

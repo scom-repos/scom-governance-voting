@@ -237,6 +237,8 @@ export async function getVotingAddresses(state: State, chainId: number, tokenA: 
         if (!new BigNumber(tokens[0].address.toLowerCase()).lt(tokens[1].address.toLowerCase())) {
             tokens = [tokens[1], tokens[0]];
         }
+        const token0Address = tokens[0].address.toLowerCase();
+        const token1Address = tokens[1].address.toLowerCase();
 
         let votingContract = new Contracts.OAXDEX_VotingContract(wallet);
 
@@ -248,11 +250,11 @@ export async function getVotingAddresses(state: State, chainId: number, tokenA: 
             }
         }));
 
-        for (let i = 0; i < votings.length; i++) {
+        for (let i = votings.length - 1; i >= 0; i--) {
             let result = decodeVotingParamsRawData(getParamsResult.results[i]);
             let executeParam = parseVotingExecuteParam(result);
             if (!executeParam) continue;
-            if (executeParam.token0 === tokens[0].address && executeParam.token1 === tokens[1].address) {
+            if (executeParam.token0 === token0Address && executeParam.token1 === token1Address) {
                 addresses.push(votings[i]);
             }
         }

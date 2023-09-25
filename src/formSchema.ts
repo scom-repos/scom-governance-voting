@@ -161,10 +161,11 @@ export function getFormSchema(state: State) {
                         return comboVotingAddress;
                     },
                     getData: (control: ComboBox) => {
-                        return Number((control.selectedItem as IComboItem)?.value);
+                        return (control.selectedItem as IComboItem)?.value;
                     },
                     setData: async (control: ComboBox, value: string) => {
                         const data: IGovernanceVoting = getData();
+                        const chainId = networkPicker?.selectedNetwork?.chainId;
                         if (data.chainId && data.tokenFrom != null && data.tokenTo != null) {
                             const tokens = tokenStore.getTokenList(data.chainId);
                             let tokenFrom = tokens.find(token => (token.address ?? "") == data.tokenFrom);
