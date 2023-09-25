@@ -499,12 +499,18 @@ export default class GovernanceVoting extends Module {
     private async handleExecute() {
         try {
             if (this.isCanExecute) {
+                this.btnExecute.rightIcon.spin = true;
+                this.btnExecute.rightIcon.visible = true;
                 this.showResultMessage('warning', `Executing proposal ${this.votingAddress}`);
                 this.registerSendTxEvents();
                 await execute(this.votingAddress);
+                this.btnExecute.rightIcon.spin = false;
+                this.btnExecute.rightIcon.visible = false;
             }
         } catch (err) {
             this.showResultMessage('error', err);
+            this.btnExecute.rightIcon.spin = false;
+            this.btnExecute.rightIcon.visible = false;
         }
     }
 
@@ -515,11 +521,17 @@ export default class GovernanceVoting extends Module {
         }
         if (this.isAddVoteBallotDisabled || !this.isVoteSelected) return;
         try {
+            this.btnSubmitVote.rightIcon.spin = true;
+            this.btnSubmitVote.rightIcon.visible = true;
             this.showResultMessage('warning');
             this.registerSendTxEvents();
             await vote(this.votingAddress, this.selectedVoteObj.optionValue.toString());
+            this.btnSubmitVote.rightIcon.spin = false;
+            this.btnSubmitVote.rightIcon.visible = false;
         } catch (err) {
             this.showResultMessage('error', err);
+            this.btnSubmitVote.rightIcon.spin = false;
+            this.btnSubmitVote.rightIcon.visible = false;
         }
     }
 
