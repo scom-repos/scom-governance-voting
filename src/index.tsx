@@ -265,7 +265,7 @@ export default class GovernanceVoting extends Module {
                             oldData = JSON.parse(JSON.stringify(this._data));
                             const { chainId, tokenFrom, tokenTo, votingAddress } = userInputData;
                             const themeSettings = {};
-                            this._data.chainId = chainId;
+                            this._data.chainId = this._data.defaultChainId = chainId;
                             this._data.tokenFrom = tokenFrom;
                             this._data.tokenTo = tokenTo;
                             this._data.votingAddress = votingAddress;
