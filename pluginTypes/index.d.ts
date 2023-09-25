@@ -1,5 +1,7 @@
 /// <reference path="@scom/scom-dapp-container/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@ijstech/eth-wallet/index.d.ts" />
+/// <reference path="@scom/scom-token-input/@ijstech/eth-wallet/index.d.ts" />
+/// <reference path="@scom/scom-token-input/@scom/scom-token-modal/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@ijstech/eth-contract/index.d.ts" />
 /// <amd-module name="@scom/scom-governance-voting/interface.ts" />
 declare module "@scom/scom-governance-voting/interface.ts" {
@@ -220,6 +222,65 @@ declare module "@scom/scom-governance-voting/voteList.tsx" {
         render(): any;
     }
 }
+/// <amd-module name="@scom/scom-governance-voting/formSchema.ts" />
+declare module "@scom/scom-governance-voting/formSchema.ts" {
+    import { ComboBox } from '@ijstech/components';
+    import ScomNetworkPicker from '@scom/scom-network-picker';
+    import ScomTokenInput from '@scom/scom-token-input';
+    import { State } from "@scom/scom-governance-voting/store/index.ts";
+    export function getFormSchema(state: State): {
+        dataSchema: {
+            type: string;
+            properties: {
+                chainId: {
+                    type: string;
+                    required: boolean;
+                };
+                tokenFrom: {
+                    type: string;
+                    required: boolean;
+                };
+                tokenTo: {
+                    type: string;
+                    required: boolean;
+                };
+                votingAddress: {
+                    type: string;
+                    required: boolean;
+                };
+            };
+        };
+        uiSchema: {
+            type: string;
+            elements: {
+                type: string;
+                scope: string;
+            }[];
+        };
+        customControls(rpcWalletId: string, getData: Function): {
+            "#/properties/chainId": {
+                render: () => ScomNetworkPicker;
+                getData: (control: ScomNetworkPicker) => number;
+                setData: (control: ScomNetworkPicker, value: number) => void;
+            };
+            "#/properties/tokenFrom": {
+                render: () => ScomTokenInput;
+                getData: (control: ScomTokenInput) => string;
+                setData: (control: ScomTokenInput, value: string) => void;
+            };
+            "#/properties/tokenTo": {
+                render: () => ScomTokenInput;
+                getData: (control: ScomTokenInput) => string;
+                setData: (control: ScomTokenInput, value: string) => void;
+            };
+            "#/properties/votingAddress": {
+                render: () => ComboBox;
+                getData: (control: ComboBox) => number;
+                setData: (control: ComboBox, value: string) => Promise<void>;
+            };
+        };
+    };
+}
 /// <amd-module name="@scom/scom-governance-voting" />
 declare module "@scom/scom-governance-voting" {
     import { ControlElement, Module } from "@ijstech/components";
@@ -311,7 +372,43 @@ declare module "@scom/scom-governance-voting" {
         init(): Promise<void>;
         private _getActions;
         private getProjectOwnerActions;
-        getConfigurators(): any[];
+        getConfigurators(): ({
+            name: string;
+            target: string;
+            getProxySelectors: (chainId: number) => Promise<any[]>;
+            getActions: () => any[];
+            getData: any;
+            setData: (data: any) => Promise<void>;
+            getTag: any;
+            setTag: any;
+        } | {
+            name: string;
+            target: string;
+            getActions: any;
+            getData: any;
+            setData: (data: any) => Promise<void>;
+            getTag: any;
+            setTag: any;
+            getProxySelectors?: undefined;
+        } | {
+            name: string;
+            target: string;
+            getData: () => Promise<{
+                chainId: number;
+                tokenFrom: string;
+                tokenTo: string;
+                votingAddress: string;
+                wallets: IWalletPlugin[];
+                networks: INetworkConfig[];
+                defaultChainId?: number;
+                showHeader?: boolean;
+            }>;
+            setData: (properties: IGovernanceVoting, linkParams?: Record<string, any>) => Promise<void>;
+            getTag: any;
+            setTag: any;
+            getProxySelectors?: undefined;
+            getActions?: undefined;
+        })[];
         private getData;
         private setData;
         getTag(): Promise<any>;

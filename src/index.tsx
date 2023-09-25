@@ -24,6 +24,7 @@ import { BigNumber, Constants, Wallet } from "@ijstech/eth-wallet";
 import { GovernanceVoteList } from './voteList';
 import { execute, freezedStake, getVotingResult, stakeOf, vote } from "./api";
 import { tokenStore } from "@scom/scom-token-list";
+import { getFormSchema } from "./formSchema";
 
 const Theme = Styles.Theme.ThemeVars;
 
@@ -242,18 +243,131 @@ export default class GovernanceVoting extends Module {
     }
 
     private _getActions(category?: string) {
+        const formSchema: any = getFormSchema(this.state);
         const actions: any[] = [];
+        if (category && category !== 'offers') {
+            actions.push({
+                name: 'Edit',
+                icon: 'edit',
+                command: (builder: any, userInputData: any) => {
+                    let oldData: IGovernanceVoting = {
+                        chainId: 0,
+                        tokenFrom: '',
+                        tokenTo: '',
+                        votingAddress: '',
+                        wallets: [],
+                        networks: []
+                    };
+                    let oldTag = {};
+                    return {
+                        execute: () => {
+                            oldData = JSON.parse(JSON.stringify(this._data));
+                            const { chainId, tokenFrom, tokenTo, votingAddress } = userInputData;
+                            const themeSettings = {};
+                            this._data.chainId = chainId;
+                            this._data.tokenFrom = tokenFrom;
+                            this._data.tokenTo = tokenTo;
+                            this._data.votingAddress = votingAddress;
+                            this.resetRpcWallet();
+                            this.refreshUI();
+                            if (builder?.setData)
+                                builder.setData(this._data);
+
+                            oldTag = JSON.parse(JSON.stringify(this.tag));
+                            if (builder?.setTag)
+                                builder.setTag(themeSettings);
+                            else
+                                this.setTag(themeSettings);
+                            if (this.dappContainer)
+                                this.dappContainer.setTag(themeSettings);
+                        },
+                        undo: () => {
+                            this._data = JSON.parse(JSON.stringify(oldData));
+                            this.refreshUI();
+                            if (builder?.setData)
+                                builder.setData(this._data);
+
+                            this.tag = JSON.parse(JSON.stringify(oldTag));
+                            if (builder?.setTag)
+                                builder.setTag(this.tag);
+                            else
+                                this.setTag(this.tag);
+                            if (this.dappContainer)
+                                this.dappContainer.setTag(this.tag);
+                        },
+                        redo: () => { }
+                    }
+                },
+                userInputDataSchema: formSchema.dataSchema,
+                userInputUISchema: formSchema.uiSchema,
+                customControls: formSchema.customControls()
+            });
+        }
         return actions;
     }
 
     private getProjectOwnerActions() {
+        const formSchema: any = getFormSchema(this.state);
+        const rpcWallet = this.state.getRpcWallet();
         const actions: any[] = [
+			{
+				name: 'Settings',
+				userInputDataSchema: formSchema.dataSchema,
+				userInputUISchema: formSchema.uiSchema,
+				customControls: formSchema.customControls(rpcWallet?.instanceId, this.getData.bind(this))
+			}
         ];
         return actions;
     }
 
     getConfigurators() {
         return [
+            {
+                name: 'Project Owner Configurator',
+                target: 'Project Owners',
+                getProxySelectors: async (chainId: number) => {
+                    return [];
+                },
+                getActions: () => {
+                    return this.getProjectOwnerActions();
+                },
+                getData: this.getData.bind(this),
+                setData: async (data: any) => {
+                    await this.setData(data);
+                },
+                getTag: this.getTag.bind(this),
+                setTag: this.setTag.bind(this)
+            },
+            {
+                name: 'Builder Configurator',
+                target: 'Builders',
+                getActions: this._getActions.bind(this),
+                getData: this.getData.bind(this),
+                setData: async (data: any) => {
+                    const defaultData = configData.defaultBuilderData;
+                    await this.setData({ ...defaultData, ...data });
+                },
+                getTag: this.getTag.bind(this),
+                setTag: this.setTag.bind(this)
+            },
+            {
+                name: 'Embedder Configurator',
+                target: 'Embedders',
+                getData: async () => {
+                    return { ...this._data }
+                },
+                setData: async (properties: IGovernanceVoting, linkParams?: Record<string, any>) => {
+                    let resultingData = {
+                      ...properties
+                    };
+                    if (!properties.defaultChainId && properties.networks?.length) {
+                        resultingData.defaultChainId = properties.networks[0].chainId;
+                    }
+                    await this.setData(resultingData);
+                },
+                getTag: this.getTag.bind(this),
+                setTag: this.setTag.bind(this)
+            }
         ];
     }
 
@@ -563,7 +677,7 @@ export default class GovernanceVoting extends Module {
                             <i-label id="lblTitle" font={{ size: 'clamp(1rem, 0.8rem + 1vw, 2rem)', weight: 600 }}></i-label>
                             <i-panel padding={{ top: "1rem", bottom: "1rem" }}>
                                 <i-stack
-                                    direction="horizontal" alignItems="center" justifyContent="space-between"
+                                    direction="horizontal" alignItems="start" justifyContent="space-between"
                                     mediaQueries={[{
                                         maxWidth: '767px', properties: {
                                             direction: 'vertical', alignItems: 'start', justifyContent: 'start', gap: '1rem'
