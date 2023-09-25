@@ -1,4 +1,4 @@
-import { BigNumber, Utils } from "@ijstech/eth-wallet";
+import { BigNumber, Utils, Wallet } from "@ijstech/eth-wallet";
 import { Contracts } from "@scom/oswap-openswap-contract";
 import { ITokenObject, tokenStore } from "@scom/scom-token-list";
 import { IExecuteParam, IVotingParams, IVotingResult } from "./interface";
@@ -162,7 +162,7 @@ function parseVotingParams(state: State, params: IVotingParams) {
         executor: params.executor,
         address: '',
         id: params.id,
-        name: Utils.bytes32ToString(params.name),
+        name: Utils.bytes32ToString(params.name).replace(/\x00/gi, ""),
         options: {},
         quorum: Utils.fromDecimals(params.quorum[0]).toFixed(),
         voteStartTime: new Date(params.voteStartTime.times(1000).toNumber()),
@@ -183,7 +183,8 @@ function parseVotingParams(state: State, params: IVotingParams) {
     let govDecimals = govTokenDecimals(state);
     for (let i = 0; i < params.options.length; i++) {
         let weight = Utils.fromDecimals(params.optionsWeight[i], govDecimals);
-        result.options[Utils.bytes32ToString(params.options[i])] = weight;
+        let key = Utils.bytes32ToString(params.options[i]).replace(/\x00/gi, "");
+        result.options[key] = weight;
         quorumRemain = quorumRemain.minus(weight);
     }
     result.quorumRemain = quorumRemain.lt(0) ? '0' : quorumRemain.toFixed();
@@ -279,4 +280,19 @@ export async function getOptionVoted(state: State, votingAddress: string, addres
         result = { option: option, weight: weight };
     } catch (err) {}
     return result;
+}
+
+export async function execute(votingAddress: string) {
+    const wallet = Wallet.getClientInstance();
+    const votingContract = new Contracts.OAXDEX_VotingContract(wallet, votingAddress);
+    let receipt = await votingContract.execute();
+    return receipt;
+}
+
+export async function vote(votingAddress: string, value: string) {
+    const param = value == 'Y' ? 0 : 1;
+    const wallet = Wallet.getClientInstance();
+    const votingContract = new Contracts.OAXDEX_VotingContract(wallet, votingAddress);
+    let receipt = await votingContract.vote(param);
+    return receipt;
 }

@@ -22,7 +22,7 @@ import configData from './data.json';
 import customStyles from './index.css';
 import { BigNumber, Constants, Wallet } from "@ijstech/eth-wallet";
 import { GovernanceVoteList } from './voteList';
-import { freezedStake, getVotingResult, stakeOf } from "./api";
+import { execute, freezedStake, getVotingResult, stakeOf, vote } from "./api";
 import { tokenStore } from "@scom/scom-token-list";
 
 const Theme = Styles.Theme.ThemeVars;
@@ -103,6 +103,7 @@ export default class GovernanceVoting extends Module {
     tag: any = {};
     private lockTill: number = 0;
     private selectedVoteTexts: string[] = [];
+    private selectedVoteObj: IOption;
     private isVoteSelected: boolean = false;
     private proposalType: ProposalType;
     private voteOptions: any;
@@ -441,8 +442,8 @@ export default class GovernanceVoting extends Module {
     }
 
     private updateMainUI() {
-        const optionY = new BigNumber(this.voteOptions.Y?.value ?? 0);
-        const optionN = new BigNumber(this.voteOptions.N?.value ?? 0);
+        const optionY = new BigNumber(this.voteOptions.Y ?? 0);
+        const optionN = new BigNumber(this.voteOptions.N ?? 0);
         const votingQuorum = new BigNumber(this.votingQuorum);
         this.inFavourBar.width = !votingQuorum.eq(0) ? `${optionY.div(votingQuorum).times(100).toFixed()}%` : 0;
         this.lblVoteOptionY.caption = optionY.toFixed();
@@ -466,14 +467,59 @@ export default class GovernanceVoting extends Module {
         };
     }
 
-    private selectVote(index: number) { }
+    private selectVote(index: number) {
+        this.selectedVoteTexts = [this.voteList[index].optionText];
+        this.selectedVoteObj = this.voteList[index];
+        this.isVoteSelected = true;
+        if (this.btnSubmitVote) {
+            this.btnSubmitVote.enabled = !(this.isAddVoteBallotDisabled || !this.isVoteSelected);
+        }
+    }
 
-    private async handleExecute() { }
+    private registerSendTxEvents = () => {
+        const txHashCallback = async (err: Error, receipt?: string) => {
+            if (err) {
+                this.showResultMessage('error', err);
+            } else if (receipt) {
+                this.showResultMessage('success', receipt);
+            }
+        }
+
+        const confirmationCallback = async (receipt: any) => {
+            this.refreshUI();
+        };
+        
+        const wallet = Wallet.getClientInstance();
+        wallet.registerSendTxEvents({
+            transactionHash: txHashCallback,
+            confirmation: confirmationCallback
+        });
+    }
+
+    private async handleExecute() {
+        try {
+            if (this.isCanExecute) {
+                this.showResultMessage('warning', `Executing proposal ${this.votingAddress}`);
+                this.registerSendTxEvents();
+                await execute(this.votingAddress);
+            }
+        } catch (err) {
+            this.showResultMessage('error', err);
+        }
+    }
 
     private async onSubmitVote() {
         if (!isClientWalletConnected() || !this.state.isRpcWalletConnected()) {
             this.connectWallet();
             return;
+        }
+        if (this.isAddVoteBallotDisabled || !this.isVoteSelected) return;
+        try {
+            this.showResultMessage('warning');
+            this.registerSendTxEvents();
+            await vote(this.votingAddress, this.selectedVoteObj.optionValue.toString());
+        } catch (err) {
+            this.showResultMessage('error', err);
         }
     }
 

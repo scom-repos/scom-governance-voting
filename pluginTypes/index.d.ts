@@ -1,5 +1,6 @@
 /// <reference path="@scom/scom-dapp-container/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@ijstech/eth-wallet/index.d.ts" />
+/// <reference path="@ijstech/eth-contract/index.d.ts" />
 /// <amd-module name="@scom/scom-governance-voting/interface.ts" />
 declare module "@scom/scom-governance-voting/interface.ts" {
     import { BigNumber } from "@ijstech/eth-wallet";
@@ -165,6 +166,8 @@ declare module "@scom/scom-governance-voting/api.ts" {
     export function getVotingAddresses(state: State, chainId: number, tokenA: ITokenObject, tokenB: ITokenObject): Promise<string[]>;
     export function getVotingResult(state: State, votingAddress: string): Promise<IVotingResult>;
     export function getOptionVoted(state: State, votingAddress: string, address: string): Promise<any>;
+    export function execute(votingAddress: string): Promise<import("@ijstech/eth-contract").TransactionReceipt>;
+    export function vote(votingAddress: string, value: string): Promise<import("@ijstech/eth-contract").TransactionReceipt>;
 }
 /// <amd-module name="@scom/scom-governance-voting/voteList.tsx" />
 declare module "@scom/scom-governance-voting/voteList.tsx" {
@@ -272,6 +275,7 @@ declare module "@scom/scom-governance-voting" {
         tag: any;
         private lockTill;
         private selectedVoteTexts;
+        private selectedVoteObj;
         private isVoteSelected;
         private proposalType;
         private voteOptions;
@@ -325,6 +329,7 @@ declare module "@scom/scom-governance-voting" {
         private formatDate;
         private updateMainUI;
         private selectVote;
+        private registerSendTxEvents;
         private handleExecute;
         private onSubmitVote;
         render(): any;

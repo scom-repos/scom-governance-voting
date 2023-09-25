@@ -286,7 +286,7 @@ define("@scom/scom-governance-voting/index.css.ts", ["require", "exports", "@ijs
 define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/oswap-openswap-contract", "@scom/scom-token-list", "@scom/scom-governance-voting/store/index.ts"], function (require, exports, eth_wallet_2, oswap_openswap_contract_1, scom_token_list_2, index_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.getOptionVoted = exports.getVotingResult = exports.getVotingAddresses = exports.freezedStake = exports.stakeOf = void 0;
+    exports.vote = exports.execute = exports.getOptionVoted = exports.getVotingResult = exports.getVotingAddresses = exports.freezedStake = exports.stakeOf = void 0;
     function govTokenDecimals(state) {
         const chainId = state.getChainId();
         return state.getGovToken(chainId).decimals || 18;
@@ -431,7 +431,7 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
             executor: params.executor,
             address: '',
             id: params.id,
-            name: eth_wallet_2.Utils.bytes32ToString(params.name),
+            name: eth_wallet_2.Utils.bytes32ToString(params.name).replace(/\x00/gi, ""),
             options: {},
             quorum: eth_wallet_2.Utils.fromDecimals(params.quorum[0]).toFixed(),
             voteStartTime: new Date(params.voteStartTime.times(1000).toNumber()),
@@ -452,7 +452,8 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
         let govDecimals = govTokenDecimals(state);
         for (let i = 0; i < params.options.length; i++) {
             let weight = eth_wallet_2.Utils.fromDecimals(params.optionsWeight[i], govDecimals);
-            result.options[eth_wallet_2.Utils.bytes32ToString(params.options[i])] = weight;
+            let key = eth_wallet_2.Utils.bytes32ToString(params.options[i]).replace(/\x00/gi, "");
+            result.options[key] = weight;
             quorumRemain = quorumRemain.minus(weight);
         }
         result.quorumRemain = quorumRemain.lt(0) ? '0' : quorumRemain.toFixed();
@@ -553,6 +554,21 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
         return result;
     }
     exports.getOptionVoted = getOptionVoted;
+    async function execute(votingAddress) {
+        const wallet = eth_wallet_2.Wallet.getClientInstance();
+        const votingContract = new oswap_openswap_contract_1.Contracts.OAXDEX_VotingContract(wallet, votingAddress);
+        let receipt = await votingContract.execute();
+        return receipt;
+    }
+    exports.execute = execute;
+    async function vote(votingAddress, value) {
+        const param = value == 'Y' ? 0 : 1;
+        const wallet = eth_wallet_2.Wallet.getClientInstance();
+        const votingContract = new oswap_openswap_contract_1.Contracts.OAXDEX_VotingContract(wallet, votingAddress);
+        let receipt = await votingContract.vote(param);
+        return receipt;
+    }
+    exports.vote = vote;
 });
 define("@scom/scom-governance-voting/voteList.tsx", ["require", "exports", "@ijstech/components", "@scom/scom-governance-voting/index.css.ts", "@ijstech/eth-wallet", "@scom/scom-governance-voting/api.ts"], function (require, exports, components_4, index_css_1, eth_wallet_3, api_1) {
     "use strict";
@@ -800,6 +816,24 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     const clientWallet = eth_wallet_4.Wallet.getClientInstance();
                     await clientWallet.switchNetwork(this.chainId);
                 }
+            };
+            this.registerSendTxEvents = () => {
+                const txHashCallback = async (err, receipt) => {
+                    if (err) {
+                        this.showResultMessage('error', err);
+                    }
+                    else if (receipt) {
+                        this.showResultMessage('success', receipt);
+                    }
+                };
+                const confirmationCallback = async (receipt) => {
+                    this.refreshUI();
+                };
+                const wallet = eth_wallet_4.Wallet.getClientInstance();
+                wallet.registerSendTxEvents({
+                    transactionHash: txHashCallback,
+                    confirmation: confirmationCallback
+                });
             };
         }
         get chainId() {
@@ -1049,9 +1083,9 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             return (0, components_5.moment)(value).format('MMM. DD, YYYY') + ' at ' + (0, components_5.moment)(value).format('HH:mm');
         }
         updateMainUI() {
-            var _a, _b, _c, _d;
-            const optionY = new eth_wallet_4.BigNumber((_b = (_a = this.voteOptions.Y) === null || _a === void 0 ? void 0 : _a.value) !== null && _b !== void 0 ? _b : 0);
-            const optionN = new eth_wallet_4.BigNumber((_d = (_c = this.voteOptions.N) === null || _c === void 0 ? void 0 : _c.value) !== null && _d !== void 0 ? _d : 0);
+            var _a, _b;
+            const optionY = new eth_wallet_4.BigNumber((_a = this.voteOptions.Y) !== null && _a !== void 0 ? _a : 0);
+            const optionN = new eth_wallet_4.BigNumber((_b = this.voteOptions.N) !== null && _b !== void 0 ? _b : 0);
             const votingQuorum = new eth_wallet_4.BigNumber(this.votingQuorum);
             this.inFavourBar.width = !votingQuorum.eq(0) ? `${optionY.div(votingQuorum).times(100).toFixed()}%` : 0;
             this.lblVoteOptionY.caption = optionY.toFixed();
@@ -1074,12 +1108,40 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 options: this.voteList
             };
         }
-        selectVote(index) { }
-        async handleExecute() { }
+        selectVote(index) {
+            this.selectedVoteTexts = [this.voteList[index].optionText];
+            this.selectedVoteObj = this.voteList[index];
+            this.isVoteSelected = true;
+            if (this.btnSubmitVote) {
+                this.btnSubmitVote.enabled = !(this.isAddVoteBallotDisabled || !this.isVoteSelected);
+            }
+        }
+        async handleExecute() {
+            try {
+                if (this.isCanExecute) {
+                    this.showResultMessage('warning', `Executing proposal ${this.votingAddress}`);
+                    this.registerSendTxEvents();
+                    await (0, api_2.execute)(this.votingAddress);
+                }
+            }
+            catch (err) {
+                this.showResultMessage('error', err);
+            }
+        }
         async onSubmitVote() {
             if (!(0, index_2.isClientWalletConnected)() || !this.state.isRpcWalletConnected()) {
                 this.connectWallet();
                 return;
+            }
+            if (this.isAddVoteBallotDisabled || !this.isVoteSelected)
+                return;
+            try {
+                this.showResultMessage('warning');
+                this.registerSendTxEvents();
+                await (0, api_2.vote)(this.votingAddress, this.selectedVoteObj.optionValue.toString());
+            }
+            catch (err) {
+                this.showResultMessage('error', err);
             }
         }
         render() {
