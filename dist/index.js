@@ -531,6 +531,8 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
     }
     exports.getVotingAddresses = getVotingAddresses;
     async function getVotingResult(state, votingAddress) {
+        if (!votingAddress)
+            return;
         const wallet = state.getRpcWallet();
         const votingContract = new oswap_openswap_contract_1.Contracts.OAXDEX_VotingContract(wallet, votingAddress);
         const getParams = await votingContract.getParams();
@@ -544,6 +546,8 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
         const wallet = state.getRpcWallet();
         if (!address)
             address = wallet.account.address;
+        if (!votingAddress)
+            return result;
         const votingContract = new oswap_openswap_contract_1.Contracts.OAXDEX_VotingContract(wallet, votingAddress);
         try {
             let option = await votingContract.accountVoteOption(address);
@@ -580,11 +584,12 @@ define("@scom/scom-governance-voting/voteList.tsx", ["require", "exports", "@ijs
             super(...arguments);
             this.userWeightVote = {};
             this.getVoteOptions = async () => {
+                var _a;
                 const address = eth_wallet_3.Wallet.getClientInstance().account.address;
                 const getOptionVote = await (0, api_1.getOptionVoted)(this.state, this.data.address, address);
                 this.userWeightVote = {
-                    option: getOptionVote.option,
-                    weight: eth_wallet_3.Utils.fromDecimals(getOptionVote.weight).toFixed()
+                    option: getOptionVote === null || getOptionVote === void 0 ? void 0 : getOptionVote.option,
+                    weight: eth_wallet_3.Utils.fromDecimals((_a = getOptionVote === null || getOptionVote === void 0 ? void 0 : getOptionVote.weight) !== null && _a !== void 0 ? _a : "").toFixed()
                 };
                 if (this.hasVoted && this.data.options[this.userWeightVote.option] && this.onSelect)
                     this.onSelect(this.userWeightVote.option);
@@ -939,6 +944,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.lockTill = 0;
             this.selectedVoteTexts = [];
             this.isVoteSelected = false;
+            this.voteOptions = {};
             this.votingQuorum = '0';
             this.executeAction = '';
             this.executeValue = '0';
@@ -1321,8 +1327,8 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.stakeOf = await (0, api_3.stakeOf)(this.state, selectedAddress);
             let freezeStake = await (0, api_3.freezedStake)(this.state, selectedAddress);
             let freezeStakeAmount = freezeStake.amount;
-            this.stakedBalance = components_6.FormatUtils.formatNumberWithSeparators(freezeStakeAmount.plus(this.stakeOf).toFixed(4));
-            this.votingBalance = components_6.FormatUtils.formatNumberWithSeparators(this.stakeOf.toFixed(4));
+            this.stakedBalance = components_6.FormatUtils.formatNumber(freezeStakeAmount.plus(this.stakeOf).toString(), { decimalFigures: 4 });
+            this.votingBalance = components_6.FormatUtils.formatNumber(this.stakeOf.toString(), { decimalFigures: 4 });
             this.freezeStakeAmount = freezeStakeAmount;
             this.lockTill = freezeStake.lockTill;
         }
@@ -1334,7 +1340,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.lblStakedBalance.caption = `${this.stakedBalance} ${govTokenSymbol}`;
             this.lblFreezeStakeAmount.visible = canDisplay;
             if (canDisplay) {
-                this.lblFreezeStakeAmount.caption = `${components_6.FormatUtils.formatNumberWithSeparators(this.freezeStakeAmount.toFixed(4))} ${govTokenSymbol} Available on ${(0, components_6.moment)(this.lockTill).format('MMM DD, YYYY')}`;
+                this.lblFreezeStakeAmount.caption = `${components_6.FormatUtils.formatNumber(this.freezeStakeAmount.toString(), { decimalFigures: 4 })} ${govTokenSymbol} Available on ${(0, components_6.moment)(this.lockTill).format('MMM DD, YYYY')}`;
             }
             else {
                 this.lblFreezeStakeAmount.caption = '';
@@ -1384,9 +1390,9 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             return (0, components_6.moment)(value).format('MMM. DD, YYYY') + ' at ' + (0, components_6.moment)(value).format('HH:mm');
         }
         updateMainUI() {
-            var _a, _b;
-            const optionY = new eth_wallet_4.BigNumber((_a = this.voteOptions.Y) !== null && _a !== void 0 ? _a : 0);
-            const optionN = new eth_wallet_4.BigNumber((_b = this.voteOptions.N) !== null && _b !== void 0 ? _b : 0);
+            var _a, _b, _c, _d;
+            const optionY = new eth_wallet_4.BigNumber((_b = (_a = this.voteOptions) === null || _a === void 0 ? void 0 : _a.Y) !== null && _b !== void 0 ? _b : 0);
+            const optionN = new eth_wallet_4.BigNumber((_d = (_c = this.voteOptions) === null || _c === void 0 ? void 0 : _c.N) !== null && _d !== void 0 ? _d : 0);
             const votingQuorum = new eth_wallet_4.BigNumber(this.votingQuorum);
             this.inFavourBar.width = !votingQuorum.eq(0) ? `${optionY.div(votingQuorum).times(100).toFixed()}%` : 0;
             this.lblVoteOptionY.caption = optionY.toFixed();

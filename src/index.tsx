@@ -107,7 +107,7 @@ export default class GovernanceVoting extends Module {
     private selectedVoteObj: IOption;
     private isVoteSelected: boolean = false;
     private proposalType: ProposalType;
-    private voteOptions: any;
+    private voteOptions: any = {};
     private votingQuorum: string = '0';
     private executeAction: string = '';
     private executeValue: number | string = '0';
@@ -495,8 +495,8 @@ export default class GovernanceVoting extends Module {
         this.stakeOf = await stakeOf(this.state, selectedAddress);
         let freezeStake = await freezedStake(this.state, selectedAddress);
         let freezeStakeAmount = freezeStake.amount;
-        this.stakedBalance = FormatUtils.formatNumberWithSeparators(freezeStakeAmount.plus(this.stakeOf).toFixed(4));
-        this.votingBalance = FormatUtils.formatNumberWithSeparators(this.stakeOf.toFixed(4));
+        this.stakedBalance = FormatUtils.formatNumber(freezeStakeAmount.plus(this.stakeOf).toString(), { decimalFigures: 4 });
+        this.votingBalance = FormatUtils.formatNumber(this.stakeOf.toString(), { decimalFigures: 4 });
         this.freezeStakeAmount = freezeStakeAmount;
         this.lockTill = freezeStake.lockTill;
     }
@@ -508,7 +508,7 @@ export default class GovernanceVoting extends Module {
         this.lblStakedBalance.caption = `${this.stakedBalance} ${govTokenSymbol}`;
         this.lblFreezeStakeAmount.visible = canDisplay;
         if (canDisplay) {
-            this.lblFreezeStakeAmount.caption = `${FormatUtils.formatNumberWithSeparators(this.freezeStakeAmount.toFixed(4))} ${govTokenSymbol} Available on ${moment(this.lockTill).format('MMM DD, YYYY')}`;
+            this.lblFreezeStakeAmount.caption = `${FormatUtils.formatNumber(this.freezeStakeAmount.toString(), { decimalFigures: 4 })} ${govTokenSymbol} Available on ${moment(this.lockTill).format('MMM DD, YYYY')}`;
         } else {
             this.lblFreezeStakeAmount.caption = '';
         }
@@ -556,8 +556,8 @@ export default class GovernanceVoting extends Module {
     }
 
     private updateMainUI() {
-        const optionY = new BigNumber(this.voteOptions.Y ?? 0);
-        const optionN = new BigNumber(this.voteOptions.N ?? 0);
+        const optionY = new BigNumber(this.voteOptions?.Y ?? 0);
+        const optionN = new BigNumber(this.voteOptions?.N ?? 0);
         const votingQuorum = new BigNumber(this.votingQuorum);
         this.inFavourBar.width = !votingQuorum.eq(0) ? `${optionY.div(votingQuorum).times(100).toFixed()}%` : 0;
         this.lblVoteOptionY.caption = optionY.toFixed();

@@ -261,6 +261,7 @@ export async function getVotingAddresses(state: State, chainId: number, tokenA: 
 }
 
 export async function getVotingResult(state: State, votingAddress: string) {
+    if (!votingAddress) return;
     const wallet = state.getRpcWallet();
     const votingContract = new Contracts.OAXDEX_VotingContract(wallet, votingAddress);
     const getParams = await votingContract.getParams();
@@ -273,6 +274,7 @@ export async function getOptionVoted(state: State, votingAddress: string, addres
     let result;
     const wallet = state.getRpcWallet();
     if (!address) address = wallet.account.address;
+    if (!votingAddress) return result;
     const votingContract = new Contracts.OAXDEX_VotingContract(wallet, votingAddress);
     try {
         let option = await votingContract.accountVoteOption(address);

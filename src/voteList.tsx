@@ -178,8 +178,8 @@ export class GovernanceVoteList extends Module {
       const address = Wallet.getClientInstance().account.address;
       const getOptionVote = await getOptionVoted(this.state, this.data.address, address);
       this.userWeightVote = {
-        option: getOptionVote.option,
-        weight: Utils.fromDecimals(getOptionVote.weight).toFixed()
+        option: getOptionVote?.option,
+        weight: Utils.fromDecimals(getOptionVote?.weight??"").toFixed()
       };
       if (this.hasVoted && this.data.options[this.userWeightVote.option] && this.onSelect)
         this.onSelect(this.userWeightVote.option);
