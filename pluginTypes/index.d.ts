@@ -1,7 +1,5 @@
 /// <reference path="@scom/scom-dapp-container/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@ijstech/eth-wallet/index.d.ts" />
-/// <reference path="@scom/scom-token-input/@ijstech/eth-wallet/index.d.ts" />
-/// <reference path="@scom/scom-token-input/@scom/scom-token-modal/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@ijstech/eth-contract/index.d.ts" />
 /// <amd-module name="@scom/scom-governance-voting/interface.ts" />
 declare module "@scom/scom-governance-voting/interface.ts" {
@@ -11,8 +9,6 @@ declare module "@scom/scom-governance-voting/interface.ts" {
     export type ProposalType = 'Executive' | 'Poll';
     export interface IGovernanceVoting {
         chainId: number;
-        tokenFrom: string;
-        tokenTo: string;
         votingAddress: string;
         wallets: IWalletPlugin[];
         networks: INetworkConfig[];
@@ -152,11 +148,11 @@ declare module "@scom/scom-governance-voting/index.css.ts" {
     export default _default_2;
     export const voteListStyle: string;
     export const comboBoxStyle: string;
+    export const inputStyle: string;
 }
 /// <amd-module name="@scom/scom-governance-voting/api.ts" />
 declare module "@scom/scom-governance-voting/api.ts" {
     import { BigNumber } from "@ijstech/eth-wallet";
-    import { ITokenObject } from "@scom/scom-token-list";
     import { IVotingResult } from "@scom/scom-governance-voting/interface.ts";
     import { State } from "@scom/scom-governance-voting/store/index.ts";
     export function stakeOf(state: State, address: string): Promise<BigNumber>;
@@ -165,7 +161,7 @@ declare module "@scom/scom-governance-voting/api.ts" {
         timestamp: number;
         lockTill: number;
     }>;
-    export function getVotingAddresses(state: State, chainId: number, tokenA: ITokenObject, tokenB: ITokenObject): Promise<string[]>;
+    export function getLatestVotingAddress(state: State, chainId: number): Promise<string>;
     export function getVotingResult(state: State, votingAddress: string): Promise<IVotingResult>;
     export function getOptionVoted(state: State, votingAddress: string, address: string): Promise<any>;
     export function execute(votingAddress: string): Promise<import("@ijstech/eth-contract").TransactionReceipt>;
@@ -224,9 +220,7 @@ declare module "@scom/scom-governance-voting/voteList.tsx" {
 }
 /// <amd-module name="@scom/scom-governance-voting/formSchema.ts" />
 declare module "@scom/scom-governance-voting/formSchema.ts" {
-    import { ComboBox } from '@ijstech/components';
     import ScomNetworkPicker from '@scom/scom-network-picker';
-    import ScomTokenInput from '@scom/scom-token-input';
     import { State } from "@scom/scom-governance-voting/store/index.ts";
     export function getFormSchema(state: State): {
         dataSchema: {
@@ -234,19 +228,10 @@ declare module "@scom/scom-governance-voting/formSchema.ts" {
             properties: {
                 chainId: {
                     type: string;
-                    required: boolean;
-                };
-                tokenFrom: {
-                    type: string;
-                    required: boolean;
-                };
-                tokenTo: {
-                    type: string;
-                    required: boolean;
                 };
                 votingAddress: {
                     type: string;
-                    required: boolean;
+                    format: string;
                 };
             };
         };
@@ -263,21 +248,6 @@ declare module "@scom/scom-governance-voting/formSchema.ts" {
                 getData: (control: ScomNetworkPicker) => number;
                 setData: (control: ScomNetworkPicker, value: number) => void;
             };
-            "#/properties/tokenFrom": {
-                render: () => ScomTokenInput;
-                getData: (control: ScomTokenInput) => string;
-                setData: (control: ScomTokenInput, value: string) => void;
-            };
-            "#/properties/tokenTo": {
-                render: () => ScomTokenInput;
-                getData: (control: ScomTokenInput) => string;
-                setData: (control: ScomTokenInput, value: string) => void;
-            };
-            "#/properties/votingAddress": {
-                render: () => ComboBox;
-                getData: (control: ComboBox) => string;
-                setData: (control: ComboBox, value: string) => Promise<void>;
-            };
         };
     };
 }
@@ -290,8 +260,6 @@ declare module "@scom/scom-governance-voting" {
     interface ScomGovernanceVotingElement extends ControlElement {
         lazyLoad?: boolean;
         chainId: number;
-        tokenFrom: string;
-        tokenTo: string;
         votingAddress: string;
         networks: INetworkConfig[];
         wallets: IWalletPlugin[];
@@ -309,6 +277,7 @@ declare module "@scom/scom-governance-voting" {
         private dappContainer;
         private loadingElm;
         private lblTitle;
+        private edtVotingAddress;
         private lblStakedBalance;
         private lblFreezeStakeAmount;
         private lblVotingBalance;
@@ -353,6 +322,9 @@ declare module "@scom/scom-governance-voting" {
         private stakeOf;
         private expiry;
         private isCanExecute;
+        private timer;
+        private isSearching;
+        private latestVotingAddress;
         private get chainId();
         get defaultChainId(): number;
         set defaultChainId(value: number);
@@ -395,8 +367,6 @@ declare module "@scom/scom-governance-voting" {
             target: string;
             getData: () => Promise<{
                 chainId: number;
-                tokenFrom: string;
-                tokenTo: string;
                 votingAddress: string;
                 wallets: IWalletPlugin[];
                 networks: INetworkConfig[];
@@ -429,6 +399,7 @@ declare module "@scom/scom-governance-voting" {
         private registerSendTxEvents;
         private handleExecute;
         private onSubmitVote;
+        private onAddressChanged;
         render(): any;
     }
 }

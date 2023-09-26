@@ -6,8 +6,6 @@ export type ProposalType = 'Executive' | 'Poll';
 
 export interface IGovernanceVoting {
     chainId: number;
-    tokenFrom: string;
-    tokenTo: string;
     votingAddress: string;
     wallets: IWalletPlugin[];
     networks: INetworkConfig[];

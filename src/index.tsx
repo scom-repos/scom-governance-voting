@@ -5,6 +5,7 @@ import {
     customElements,
     FormatUtils,
     HStack,
+    Input,
     Label,
     Module,
     moment,
@@ -19,10 +20,10 @@ import { IGovernanceVoting, IOption, ProposalType } from "./interface";
 import { isClientWalletConnected, State } from "./store/index";
 import Assets from './assets';
 import configData from './data.json';
-import customStyles from './index.css';
+import customStyles, { inputStyle } from './index.css';
 import { BigNumber, Constants, Wallet } from "@ijstech/eth-wallet";
 import { GovernanceVoteList } from './voteList';
-import { execute, freezedStake, getVotingResult, stakeOf, vote } from "./api";
+import { execute, freezedStake, getLatestVotingAddress, getVotingResult, stakeOf, vote } from "./api";
 import { tokenStore } from "@scom/scom-token-list";
 import { getFormSchema } from "./formSchema";
 
@@ -47,8 +48,6 @@ const executeActionMap = {
 interface ScomGovernanceVotingElement extends ControlElement {
     lazyLoad?: boolean;
     chainId: number;
-    tokenFrom: string;
-    tokenTo: string;
     votingAddress: string;
     networks: INetworkConfig[];
     wallets: IWalletPlugin[];
@@ -69,6 +68,7 @@ export default class GovernanceVoting extends Module {
     private dappContainer: ScomDappContainer;
     private loadingElm: Panel;
     private lblTitle: Label;
+    private edtVotingAddress: Input;
     private lblStakedBalance: Label;
     private lblFreezeStakeAmount: Label;
     private lblVotingBalance: Label;
@@ -95,8 +95,6 @@ export default class GovernanceVoting extends Module {
     private state: State;
     private _data: IGovernanceVoting = {
         chainId: 0,
-        tokenFrom: '',
-        tokenTo: '',
         votingAddress: '',
         wallets: [],
         networks: []
@@ -121,6 +119,9 @@ export default class GovernanceVoting extends Module {
     private stakeOf: BigNumber = new BigNumber(0);
     private expiry: Date;
     private isCanExecute: boolean;
+    private timer: any;
+    private isSearching: boolean;
+    private latestVotingAddress: string;
 
     private get chainId() {
         return this.state.getChainId();
@@ -156,36 +157,36 @@ export default class GovernanceVoting extends Module {
     }
 
     get votingAddress() {
-        return this._data.votingAddress;
+        return this._data.votingAddress || this.latestVotingAddress || "";
     }
 
     private get isExecutive() {
-      return this.proposalType === 'Executive';
+        return this.proposalType === 'Executive';
     }
 
     private get voteList(): IOption[] {
-      if (this.isExecutive) {
-        return [
-          {
-            optionText: 'In Favour',
-            optionValue: 'Y',
-          },
-          {
-            optionText: 'Against',
-            optionValue: 'N',
-          },
-        ];
-      } else {
-        return this.voteOptions
-          ? Object.keys(this.voteOptions).map((v, i) => {
-              return {
-                optionText: v,
-                optionValue: i,
-                optionWeight: this.voteOptions[v],
-              };
-            })
-          : [];
-      }
+        if (this.isExecutive) {
+            return [
+                {
+                    optionText: 'In Favour',
+                    optionValue: 'Y',
+                },
+                {
+                    optionText: 'Against',
+                    optionValue: 'N',
+                },
+            ];
+        } else {
+            return this.voteOptions
+                ? Object.keys(this.voteOptions).map((v, i) => {
+                    return {
+                        optionText: v,
+                        optionValue: i,
+                        optionWeight: this.voteOptions[v],
+                    };
+                })
+                : [];
+        }
     }
 
     private get isAddVoteBallotDisabled() {
@@ -217,16 +218,12 @@ export default class GovernanceVoting extends Module {
         if (!lazyLoad) {
             const defaultChainId = this.getAttribute('defaultChainId', true);
             const chainId = this.getAttribute('chainId', true, defaultChainId || 0);
-            const tokenFrom = this.getAttribute('tokenFrom', true, '');
-            const tokenTo = this.getAttribute('tokenTo', true, '');
             const votingAddress = this.getAttribute('votingAddress', true, '');
             const networks = this.getAttribute('networks', true);
             const wallets = this.getAttribute('wallets', true);
             const showHeader = this.getAttribute('showHeader', true);
             const data: IGovernanceVoting = {
                 chainId,
-                tokenFrom,
-                tokenTo,
                 votingAddress,
                 networks,
                 wallets,
@@ -253,8 +250,6 @@ export default class GovernanceVoting extends Module {
                 command: (builder: any, userInputData: any) => {
                     let oldData: IGovernanceVoting = {
                         chainId: 0,
-                        tokenFrom: '',
-                        tokenTo: '',
                         votingAddress: '',
                         wallets: [],
                         networks: []
@@ -263,11 +258,9 @@ export default class GovernanceVoting extends Module {
                     return {
                         execute: () => {
                             oldData = JSON.parse(JSON.stringify(this._data));
-                            const { chainId, tokenFrom, tokenTo, votingAddress } = userInputData;
+                            const { chainId, votingAddress } = userInputData;
                             const themeSettings = {};
                             this._data.chainId = this._data.defaultChainId = chainId;
-                            this._data.tokenFrom = tokenFrom;
-                            this._data.tokenTo = tokenTo;
                             this._data.votingAddress = votingAddress;
                             this.resetRpcWallet();
                             this.refreshUI();
@@ -311,12 +304,12 @@ export default class GovernanceVoting extends Module {
         const formSchema: any = getFormSchema(this.state);
         const rpcWallet = this.state.getRpcWallet();
         const actions: any[] = [
-			{
-				name: 'Settings',
-				userInputDataSchema: formSchema.dataSchema,
-				userInputUISchema: formSchema.uiSchema,
-				customControls: formSchema.customControls(rpcWallet?.instanceId, this.getData.bind(this))
-			}
+            {
+                name: 'Settings',
+                userInputDataSchema: formSchema.dataSchema,
+                userInputUISchema: formSchema.uiSchema,
+                customControls: formSchema.customControls(rpcWallet?.instanceId, this.getData.bind(this))
+            }
         ];
         return actions;
     }
@@ -359,7 +352,7 @@ export default class GovernanceVoting extends Module {
                 },
                 setData: async (properties: IGovernanceVoting, linkParams?: Record<string, any>) => {
                     let resultingData = {
-                      ...properties
+                        ...properties
                     };
                     if (!properties.defaultChainId && properties.networks?.length) {
                         resultingData.defaultChainId = properties.networks[0].chainId;
@@ -448,6 +441,10 @@ export default class GovernanceVoting extends Module {
             tokenStore.updateTokenMapData(chainId);
             await this.initWallet();
             await this.setGovBalance();
+            if (!this._data.votingAddress) {
+                this.latestVotingAddress = await getLatestVotingAddress(this.state, this.chainId);
+            }
+            this.edtVotingAddress.value = this.votingAddress;
             this.updateBalanceStack();
             await this.getVotingResult();
             const connected = isClientWalletConnected();
@@ -517,6 +514,10 @@ export default class GovernanceVoting extends Module {
     }
 
     private async getVotingResult() {
+        const wallet = this.state.getRpcWallet();
+        if (this._data.votingAddress && wallet.chainId != this._data.chainId) {
+            await wallet.switchNetwork(this._data.chainId);
+        }
         const votingResult = await getVotingResult(this.state, this.votingAddress);
         if (votingResult) {
             this.proposalType = votingResult.hasOwnProperty('executeParam') ? 'Executive' : 'Poll';
@@ -603,7 +604,7 @@ export default class GovernanceVoting extends Module {
         const confirmationCallback = async (receipt: any) => {
             this.refreshUI();
         };
-        
+
         const wallet = Wallet.getClientInstance();
         wallet.registerSendTxEvents({
             transactionHash: txHashCallback,
@@ -650,6 +651,26 @@ export default class GovernanceVoting extends Module {
         }
     }
 
+    private onAddressChanged() {
+        if (this.isSearching) return;
+        const regex = new RegExp('^((0x[a-fA-F0-9]{40})|([13][a-km-zA-HJ-NP-Z1-9]{25,34})|(X[1-9A-HJ-NP-Za-km-z]{33})|(4[0-9AB][1-9A-HJ-NP-Za-km-z]{93}))$');
+        if (this.timer) clearTimeout(this.timer);
+        this.timer = setTimeout(async () => {
+            const address = this.edtVotingAddress.value;
+            if (this.isSearching || (address && !regex.test(address))) return;
+            this.isSearching = true;
+            this.edtVotingAddress.enabled = false;
+            if (address) {
+                this._data.votingAddress = address;
+            } else {
+                delete this._data.votingAddress;
+            }
+            await this.refreshUI();
+            this.edtVotingAddress.enabled = true;
+            this.isSearching = false;
+        }, 500);
+    }
+
     render() {
         return (
             <i-scom-dapp-container id="dappContainer">
@@ -677,6 +698,24 @@ export default class GovernanceVoting extends Module {
                         >
                             <i-label id="lblTitle" font={{ size: 'clamp(1rem, 0.8rem + 1vw, 2rem)', weight: 600 }}></i-label>
                             <i-panel padding={{ top: "1rem", bottom: "1rem" }}>
+                                <i-hstack
+                                    width="50%"
+                                    padding={{ bottom: "1rem" }}
+                                    verticalAlignment="center"
+                                    gap={4}
+                                    mediaQueries={[{ maxWidth: '767px', properties: { width: "100%" } }]}
+                                >
+                                    <i-label caption="Address: " font={{ size: '1rem', color: Theme.text.third, bold: true }}></i-label>
+                                    <i-input
+                                        id="edtVotingAddress"
+                                        class={inputStyle}
+                                        height={32}
+                                        width="100%"
+                                        border={{ radius: 6 }}
+                                        font={{ size: '1rem', color: Theme.text.third }}
+                                        onChanged={this.onAddressChanged.bind(this)}
+                                    ></i-input>
+                                </i-hstack>
                                 <i-stack
                                     direction="horizontal" alignItems="start" justifyContent="space-between"
                                     mediaQueries={[{

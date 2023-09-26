@@ -70,3 +70,12 @@ export const comboBoxStyle = Styles.style({
         }
     }
 })
+
+export const inputStyle = Styles.style({
+    $nest: {
+        'input': {
+            color: Theme.text.third,
+            padding: '0.375rem 0.5rem'
+        }
+    }
+})

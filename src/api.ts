@@ -223,8 +223,8 @@ function parseVotingParams(state: State, params: IVotingParams) {
     return result;
 }
 
-export async function getVotingAddresses(state: State, chainId: number, tokenA: ITokenObject, tokenB: ITokenObject) {
-    let addresses: string[] = [];
+export async function getLatestVotingAddress(state: State, chainId: number) {
+    let address: string = '';
     try {
         const wallet = state.getRpcWallet();
         await wallet.init();
@@ -232,13 +232,6 @@ export async function getVotingAddresses(state: State, chainId: number, tokenA: 
         let gov = state.getAddresses(chainId).OAXDEX_Governance;
         let govContract = new Contracts.OAXDEX_Governance(wallet, gov);
         let votings = await govContract.allVotings();
-        const WETH9 = getWETH(chainId);
-        let tokens = [tokenA, tokenB].map(e => e?.address ? e : WETH9);
-        if (!new BigNumber(tokens[0].address.toLowerCase()).lt(tokens[1].address.toLowerCase())) {
-            tokens = [tokens[1], tokens[0]];
-        }
-        const token0Address = tokens[0].address.toLowerCase();
-        const token1Address = tokens[1].address.toLowerCase();
 
         let votingContract = new Contracts.OAXDEX_VotingContract(wallet);
 
@@ -254,12 +247,11 @@ export async function getVotingAddresses(state: State, chainId: number, tokenA: 
             let result = decodeVotingParamsRawData(getParamsResult.results[i]);
             let executeParam = parseVotingExecuteParam(result);
             if (!executeParam) continue;
-            if (executeParam.token0 === token0Address && executeParam.token1 === token1Address) {
-                addresses.push(votings[i]);
-            }
+            address = votings[i];
+            break;
         }
     } catch (err) { }
-    return addresses;
+    return address;
 }
 
 export async function getVotingResult(state: State, votingAddress: string) {

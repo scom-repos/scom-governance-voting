@@ -215,7 +215,7 @@ define("@scom/scom-governance-voting/data.json.ts", ["require", "exports"], func
 define("@scom/scom-governance-voting/index.css.ts", ["require", "exports", "@ijstech/components"], function (require, exports, components_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.comboBoxStyle = exports.voteListStyle = void 0;
+    exports.inputStyle = exports.comboBoxStyle = exports.voteListStyle = void 0;
     const Theme = components_3.Styles.Theme.ThemeVars;
     exports.default = components_3.Styles.style({
         $nest: {
@@ -282,11 +282,19 @@ define("@scom/scom-governance-voting/index.css.ts", ["require", "exports", "@ijs
             }
         }
     });
+    exports.inputStyle = components_3.Styles.style({
+        $nest: {
+            'input': {
+                color: Theme.text.third,
+                padding: '0.375rem 0.5rem'
+            }
+        }
+    });
 });
-define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/oswap-openswap-contract", "@scom/scom-token-list", "@scom/scom-governance-voting/store/index.ts"], function (require, exports, eth_wallet_2, oswap_openswap_contract_1, scom_token_list_2, index_1) {
+define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/eth-wallet", "@scom/oswap-openswap-contract", "@scom/scom-token-list"], function (require, exports, eth_wallet_2, oswap_openswap_contract_1, scom_token_list_2) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.vote = exports.execute = exports.getOptionVoted = exports.getVotingResult = exports.getVotingAddresses = exports.freezedStake = exports.stakeOf = void 0;
+    exports.vote = exports.execute = exports.getOptionVoted = exports.getVotingResult = exports.getLatestVotingAddress = exports.freezedStake = exports.stakeOf = void 0;
     function govTokenDecimals(state) {
         const chainId = state.getChainId();
         return state.getGovToken(chainId).decimals || 18;
@@ -493,8 +501,8 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
             result.title = title;
         return result;
     }
-    async function getVotingAddresses(state, chainId, tokenA, tokenB) {
-        let addresses = [];
+    async function getLatestVotingAddress(state, chainId) {
+        let address = '';
         try {
             const wallet = state.getRpcWallet();
             await wallet.init();
@@ -503,13 +511,6 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
             let gov = state.getAddresses(chainId).OAXDEX_Governance;
             let govContract = new oswap_openswap_contract_1.Contracts.OAXDEX_Governance(wallet, gov);
             let votings = await govContract.allVotings();
-            const WETH9 = (0, index_1.getWETH)(chainId);
-            let tokens = [tokenA, tokenB].map(e => (e === null || e === void 0 ? void 0 : e.address) ? e : WETH9);
-            if (!new eth_wallet_2.BigNumber(tokens[0].address.toLowerCase()).lt(tokens[1].address.toLowerCase())) {
-                tokens = [tokens[1], tokens[0]];
-            }
-            const token0Address = tokens[0].address.toLowerCase();
-            const token1Address = tokens[1].address.toLowerCase();
             let votingContract = new oswap_openswap_contract_1.Contracts.OAXDEX_VotingContract(wallet);
             const getParamsTxData = wallet.encodeFunctionCall(votingContract, 'getParams', []);
             const getParamsResult = await wallet.multiCall(votings.map(v => {
@@ -523,15 +524,14 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
                 let executeParam = parseVotingExecuteParam(result);
                 if (!executeParam)
                     continue;
-                if (executeParam.token0 === token0Address && executeParam.token1 === token1Address) {
-                    addresses.push(votings[i]);
-                }
+                address = votings[i];
+                break;
             }
         }
         catch (err) { }
-        return addresses;
+        return address;
     }
-    exports.getVotingAddresses = getVotingAddresses;
+    exports.getLatestVotingAddress = getLatestVotingAddress;
     async function getVotingResult(state, votingAddress) {
         if (!votingAddress)
             return;
@@ -723,32 +723,22 @@ define("@scom/scom-governance-voting/voteList.tsx", ["require", "exports", "@ijs
     ], GovernanceVoteList);
     exports.GovernanceVoteList = GovernanceVoteList;
 });
-define("@scom/scom-governance-voting/formSchema.ts", ["require", "exports", "@ijstech/components", "@scom/scom-network-picker", "@scom/scom-token-input", "@scom/scom-token-list", "@scom/scom-governance-voting/api.ts", "@scom/scom-governance-voting/index.css.ts"], function (require, exports, components_5, scom_network_picker_1, scom_token_input_1, scom_token_list_3, api_2, index_css_2) {
+///<amd-module name='@scom/scom-governance-voting/formSchema.ts'/> 
+define("@scom/scom-governance-voting/formSchema.ts", ["require", "exports", "@scom/scom-network-picker"], function (require, exports, scom_network_picker_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getFormSchema = void 0;
-    const chainIds = [56, 97, 137, 80001, 43113, 43114];
-    const networks = chainIds.map(v => { return { chainId: v }; });
     function getFormSchema(state) {
         return {
             dataSchema: {
                 type: 'object',
                 properties: {
                     chainId: {
-                        type: 'number',
-                        required: true
-                    },
-                    tokenFrom: {
-                        type: 'string',
-                        required: true
-                    },
-                    tokenTo: {
-                        type: 'string',
-                        required: true
+                        type: 'number'
                     },
                     votingAddress: {
                         type: 'string',
-                        required: true
+                        format: 'wallet-address'
                     }
                 }
             },
@@ -761,62 +751,17 @@ define("@scom/scom-governance-voting/formSchema.ts", ["require", "exports", "@ij
                     },
                     {
                         type: 'Control',
-                        scope: '#/properties/tokenFrom'
-                    },
-                    {
-                        type: 'Control',
-                        scope: '#/properties/tokenTo'
-                    },
-                    {
-                        type: 'Control',
                         scope: '#/properties/votingAddress'
                     }
                 ]
             },
             customControls(rpcWalletId, getData) {
-                let networkPicker;
-                let firstTokenInput;
-                let secondTokenInput;
-                let comboVotingAddress;
-                let votingAddresses = [];
-                const onSelectToken = async () => {
-                    var _a;
-                    const chainId = (_a = networkPicker === null || networkPicker === void 0 ? void 0 : networkPicker.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
-                    if (chainId && firstTokenInput.token && secondTokenInput.token) {
-                        const addresses = await (0, api_2.getVotingAddresses)(state, chainId, firstTokenInput.token, secondTokenInput.token);
-                        comboVotingAddress.items = votingAddresses = addresses.map(address => ({ label: address, value: address }));
-                    }
-                };
-                const setTokenData = (control, value) => {
-                    var _a;
-                    if (!value) {
-                        const chainId = (_a = networkPicker === null || networkPicker === void 0 ? void 0 : networkPicker.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
-                        const tokens = scom_token_list_3.tokenStore.getTokenList(chainId);
-                        let token = tokens.find(token => !token.address);
-                        control.token = token;
-                    }
-                    else {
-                        control.address = value;
-                    }
-                };
                 return {
                     "#/properties/chainId": {
                         render: () => {
-                            networkPicker = new scom_network_picker_1.default(undefined, {
+                            let networkPicker = new scom_network_picker_1.default(undefined, {
                                 type: 'combobox',
-                                networks: [1, 56, 137, 250, 97, 80001, 43113, 43114].map(v => { return { chainId: v }; }),
-                                onCustomNetworkSelected: () => {
-                                    var _a;
-                                    const chainId = (_a = networkPicker.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
-                                    if (firstTokenInput.chainId != chainId) {
-                                        firstTokenInput.token = null;
-                                        secondTokenInput.token = null;
-                                        comboVotingAddress.items = votingAddresses = [];
-                                        comboVotingAddress.clear();
-                                    }
-                                    firstTokenInput.chainId = chainId;
-                                    secondTokenInput.chainId = chainId;
-                                }
+                                networks: [1, 56, 137, 250, 97, 80001, 43113, 43114].map(v => { return { chainId: v }; })
                             });
                             return networkPicker;
                         },
@@ -826,86 +771,6 @@ define("@scom/scom-governance-voting/formSchema.ts", ["require", "exports", "@ij
                         },
                         setData: (control, value) => {
                             control.setNetworkByChainId(value);
-                            if (firstTokenInput)
-                                firstTokenInput.chainId = value;
-                            if (secondTokenInput)
-                                secondTokenInput.chainId = value;
-                        }
-                    },
-                    "#/properties/tokenFrom": {
-                        render: () => {
-                            var _a;
-                            firstTokenInput = new scom_token_input_1.default(undefined, {
-                                type: 'combobox',
-                                isBalanceShown: false,
-                                isBtnMaxShown: false,
-                                isInputShown: false
-                            });
-                            firstTokenInput.rpcWalletId = rpcWalletId;
-                            const chainId = (_a = networkPicker === null || networkPicker === void 0 ? void 0 : networkPicker.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
-                            if (chainId && firstTokenInput.chainId !== chainId) {
-                                firstTokenInput.chainId = chainId;
-                            }
-                            firstTokenInput.onSelectToken = onSelectToken;
-                            return firstTokenInput;
-                        },
-                        getData: (control) => {
-                            var _a;
-                            return ((_a = control.token) === null || _a === void 0 ? void 0 : _a.address) || "";
-                        },
-                        setData: setTokenData
-                    },
-                    "#/properties/tokenTo": {
-                        render: () => {
-                            var _a;
-                            secondTokenInput = new scom_token_input_1.default(undefined, {
-                                type: 'combobox',
-                                isBalanceShown: false,
-                                isBtnMaxShown: false,
-                                isInputShown: false
-                            });
-                            secondTokenInput.rpcWalletId = rpcWalletId;
-                            const chainId = (_a = networkPicker === null || networkPicker === void 0 ? void 0 : networkPicker.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
-                            if (chainId && secondTokenInput.chainId !== chainId) {
-                                secondTokenInput.chainId = chainId;
-                            }
-                            secondTokenInput.onSelectToken = onSelectToken;
-                            return secondTokenInput;
-                        },
-                        getData: (control) => {
-                            var _a;
-                            return ((_a = control.token) === null || _a === void 0 ? void 0 : _a.address) || "";
-                        },
-                        setData: setTokenData
-                    },
-                    "#/properties/votingAddress": {
-                        render: () => {
-                            comboVotingAddress = new components_5.ComboBox(undefined, {
-                                height: '42px',
-                                icon: {
-                                    name: 'caret-down'
-                                },
-                                items: votingAddresses
-                            });
-                            comboVotingAddress.classList.add(index_css_2.comboBoxStyle);
-                            return comboVotingAddress;
-                        },
-                        getData: (control) => {
-                            var _a;
-                            return (_a = control.selectedItem) === null || _a === void 0 ? void 0 : _a.value;
-                        },
-                        setData: async (control, value) => {
-                            var _a;
-                            const data = getData();
-                            const chainId = (_a = networkPicker === null || networkPicker === void 0 ? void 0 : networkPicker.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
-                            if (data.chainId && data.tokenFrom != null && data.tokenTo != null) {
-                                const tokens = scom_token_list_3.tokenStore.getTokenList(data.chainId);
-                                let tokenFrom = tokens.find(token => { var _a; return ((_a = token.address) !== null && _a !== void 0 ? _a : "") == data.tokenFrom; });
-                                let tokenTo = tokens.find(token => { var _a; return ((_a = token.address) !== null && _a !== void 0 ? _a : "") == data.tokenTo; });
-                                const addresses = await (0, api_2.getVotingAddresses)(state, data.chainId, tokenFrom, tokenTo);
-                                comboVotingAddress.items = votingAddresses = addresses.map(address => ({ label: address, value: address }));
-                            }
-                            control.selectedItem = votingAddresses.find(v => v.value === value) || null;
                         }
                     }
                 };
@@ -914,10 +779,10 @@ define("@scom/scom-governance-voting/formSchema.ts", ["require", "exports", "@ij
     }
     exports.getFormSchema = getFormSchema;
 });
-define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/components", "@scom/scom-governance-voting/store/index.ts", "@scom/scom-governance-voting/assets.ts", "@scom/scom-governance-voting/data.json.ts", "@scom/scom-governance-voting/index.css.ts", "@ijstech/eth-wallet", "@scom/scom-governance-voting/api.ts", "@scom/scom-token-list", "@scom/scom-governance-voting/formSchema.ts"], function (require, exports, components_6, index_2, assets_1, data_json_1, index_css_3, eth_wallet_4, api_3, scom_token_list_4, formSchema_1) {
+define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/components", "@scom/scom-governance-voting/store/index.ts", "@scom/scom-governance-voting/assets.ts", "@scom/scom-governance-voting/data.json.ts", "@scom/scom-governance-voting/index.css.ts", "@ijstech/eth-wallet", "@scom/scom-governance-voting/api.ts", "@scom/scom-token-list", "@scom/scom-governance-voting/formSchema.ts"], function (require, exports, components_5, index_1, assets_1, data_json_1, index_css_2, eth_wallet_4, api_2, scom_token_list_3, formSchema_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    const Theme = components_6.Styles.Theme.ThemeVars;
+    const Theme = components_5.Styles.Theme.ThemeVars;
     const executeActionMap = {
         setTradeFee: 'Set Trade Fee',
         setProtocolFee: 'Set Protocol Fee',
@@ -933,13 +798,11 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         setOracle: 'Modify Oracle',
         setMinStakePeriod: 'Set Minimum Stake Period',
     };
-    let GovernanceVoting = class GovernanceVoting extends components_6.Module {
+    let GovernanceVoting = class GovernanceVoting extends components_5.Module {
         constructor() {
             super(...arguments);
             this._data = {
                 chainId: 0,
-                tokenFrom: '',
-                tokenTo: '',
                 votingAddress: '',
                 wallets: [],
                 networks: []
@@ -971,12 +834,16 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.initializeWidgetConfig = async () => {
                 setTimeout(async () => {
                     const chainId = this.chainId;
-                    scom_token_list_4.tokenStore.updateTokenMapData(chainId);
+                    scom_token_list_3.tokenStore.updateTokenMapData(chainId);
                     await this.initWallet();
                     await this.setGovBalance();
+                    if (!this._data.votingAddress) {
+                        this.latestVotingAddress = await (0, api_2.getLatestVotingAddress)(this.state, this.chainId);
+                    }
+                    this.edtVotingAddress.value = this.votingAddress;
                     this.updateBalanceStack();
                     await this.getVotingResult();
-                    const connected = (0, index_2.isClientWalletConnected)();
+                    const connected = (0, index_1.isClientWalletConnected)();
                     if (!connected || !this.state.isRpcWalletConnected()) {
                         this.btnSubmitVote.caption = connected ? "Switch Network" : "Connect Wallet";
                         this.btnSubmitVote.enabled = true;
@@ -1002,9 +869,9 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 this.txStatusModal.showModal();
             };
             this.connectWallet = async () => {
-                if (!(0, index_2.isClientWalletConnected)()) {
+                if (!(0, index_1.isClientWalletConnected)()) {
                     if (this.mdWallet) {
-                        await components_6.application.loadPackage('@scom/scom-wallet-modal', '*');
+                        await components_5.application.loadPackage('@scom/scom-wallet-modal', '*');
                         this.mdWallet.networks = this.networks;
                         this.mdWallet.wallets = this.wallets;
                         this.mdWallet.showModal();
@@ -1066,7 +933,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this._data.showHeader = value;
         }
         get votingAddress() {
-            return this._data.votingAddress;
+            return this._data.votingAddress || this.latestVotingAddress || "";
         }
         get isExecutive() {
             return this.proposalType === 'Executive';
@@ -1097,7 +964,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             }
         }
         get isAddVoteBallotDisabled() {
-            if ((0, components_6.moment)(this.expiry).isAfter((0, components_6.moment)()))
+            if ((0, components_5.moment)(this.expiry).isAfter((0, components_5.moment)()))
                 return Number(this.stakeOf) > 0 ? false : true;
             return true;
         }
@@ -1116,22 +983,18 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         async init() {
             this.isReadyCallbackQueued = true;
             super.init();
-            this.state = new index_2.State(data_json_1.default);
+            this.state = new index_1.State(data_json_1.default);
             this.governanceVoteList.state = this.state;
             const lazyLoad = this.getAttribute('lazyLoad', true, false);
             if (!lazyLoad) {
                 const defaultChainId = this.getAttribute('defaultChainId', true);
                 const chainId = this.getAttribute('chainId', true, defaultChainId || 0);
-                const tokenFrom = this.getAttribute('tokenFrom', true, '');
-                const tokenTo = this.getAttribute('tokenTo', true, '');
                 const votingAddress = this.getAttribute('votingAddress', true, '');
                 const networks = this.getAttribute('networks', true);
                 const wallets = this.getAttribute('wallets', true);
                 const showHeader = this.getAttribute('showHeader', true);
                 const data = {
                     chainId,
-                    tokenFrom,
-                    tokenTo,
                     votingAddress,
                     networks,
                     wallets,
@@ -1157,8 +1020,6 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     command: (builder, userInputData) => {
                         let oldData = {
                             chainId: 0,
-                            tokenFrom: '',
-                            tokenTo: '',
                             votingAddress: '',
                             wallets: [],
                             networks: []
@@ -1167,11 +1028,9 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                         return {
                             execute: () => {
                                 oldData = JSON.parse(JSON.stringify(this._data));
-                                const { chainId, tokenFrom, tokenTo, votingAddress } = userInputData;
+                                const { chainId, votingAddress } = userInputData;
                                 const themeSettings = {};
                                 this._data.chainId = this._data.defaultChainId = chainId;
-                                this._data.tokenFrom = tokenFrom;
-                                this._data.tokenTo = tokenTo;
                                 this._data.votingAddress = votingAddress;
                                 this.resetRpcWallet();
                                 this.refreshUI();
@@ -1329,11 +1188,11 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         async setGovBalance() {
             const wallet = this.state.getRpcWallet();
             const selectedAddress = wallet.account.address;
-            this.stakeOf = await (0, api_3.stakeOf)(this.state, selectedAddress);
-            let freezeStake = await (0, api_3.freezedStake)(this.state, selectedAddress);
+            this.stakeOf = await (0, api_2.stakeOf)(this.state, selectedAddress);
+            let freezeStake = await (0, api_2.freezedStake)(this.state, selectedAddress);
             let freezeStakeAmount = freezeStake.amount;
-            this.stakedBalance = components_6.FormatUtils.formatNumber(freezeStakeAmount.plus(this.stakeOf).toString(), { decimalFigures: 4 });
-            this.votingBalance = components_6.FormatUtils.formatNumber(this.stakeOf.toString(), { decimalFigures: 4 });
+            this.stakedBalance = components_5.FormatUtils.formatNumber(freezeStakeAmount.plus(this.stakeOf).toString(), { decimalFigures: 4 });
+            this.votingBalance = components_5.FormatUtils.formatNumber(this.stakeOf.toString(), { decimalFigures: 4 });
             this.freezeStakeAmount = freezeStakeAmount;
             this.lockTill = freezeStake.lockTill;
         }
@@ -1345,7 +1204,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.lblStakedBalance.caption = `${this.stakedBalance} ${govTokenSymbol}`;
             this.lblFreezeStakeAmount.visible = canDisplay;
             if (canDisplay) {
-                this.lblFreezeStakeAmount.caption = `${components_6.FormatUtils.formatNumber(this.freezeStakeAmount.toString(), { decimalFigures: 4 })} ${govTokenSymbol} Available on ${(0, components_6.moment)(this.lockTill).format('MMM DD, YYYY')}`;
+                this.lblFreezeStakeAmount.caption = `${components_5.FormatUtils.formatNumber(this.freezeStakeAmount.toString(), { decimalFigures: 4 })} ${govTokenSymbol} Available on ${(0, components_5.moment)(this.lockTill).format('MMM DD, YYYY')}`;
             }
             else {
                 this.lblFreezeStakeAmount.caption = '';
@@ -1353,7 +1212,11 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.lblVotingBalance.caption = `${this.votingBalance} ${govTokenSymbol}`;
         }
         async getVotingResult() {
-            const votingResult = await (0, api_3.getVotingResult)(this.state, this.votingAddress);
+            const wallet = this.state.getRpcWallet();
+            if (this._data.votingAddress && wallet.chainId != this._data.chainId) {
+                await wallet.switchNetwork(this._data.chainId);
+            }
+            const votingResult = await (0, api_2.getVotingResult)(this.state, this.votingAddress);
             if (votingResult) {
                 this.proposalType = votingResult.hasOwnProperty('executeParam') ? 'Executive' : 'Poll';
                 this.isCanExecute = votingResult.status == "waiting_execution";
@@ -1381,7 +1244,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                         }
                     }
                     this.executeDelaySeconds = votingResult.executeDelay.toNumber();
-                    this.executeDelayDatetime = (0, components_6.moment)(votingResult.endTime)
+                    this.executeDelayDatetime = (0, components_5.moment)(votingResult.endTime)
                         .add(this.executeDelaySeconds, 'seconds')
                         .toDate();
                     this.votingQuorum = votingResult.quorum;
@@ -1392,7 +1255,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             }
         }
         formatDate(value) {
-            return (0, components_6.moment)(value).format('MMM. DD, YYYY') + ' at ' + (0, components_6.moment)(value).format('HH:mm');
+            return (0, components_5.moment)(value).format('MMM. DD, YYYY') + ' at ' + (0, components_5.moment)(value).format('HH:mm');
         }
         updateMainUI() {
             var _a, _b, _c, _d;
@@ -1435,7 +1298,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     this.btnExecute.rightIcon.visible = true;
                     this.showResultMessage('warning', `Executing proposal ${this.votingAddress}`);
                     this.registerSendTxEvents();
-                    await (0, api_3.execute)(this.votingAddress);
+                    await (0, api_2.execute)(this.votingAddress);
                     this.btnExecute.rightIcon.spin = false;
                     this.btnExecute.rightIcon.visible = false;
                 }
@@ -1447,7 +1310,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             }
         }
         async onSubmitVote() {
-            if (!(0, index_2.isClientWalletConnected)() || !this.state.isRpcWalletConnected()) {
+            if (!(0, index_1.isClientWalletConnected)() || !this.state.isRpcWalletConnected()) {
                 this.connectWallet();
                 return;
             }
@@ -1458,7 +1321,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 this.btnSubmitVote.rightIcon.visible = true;
                 this.showResultMessage('warning');
                 this.registerSendTxEvents();
-                await (0, api_3.vote)(this.votingAddress, this.selectedVoteObj.optionValue.toString());
+                await (0, api_2.vote)(this.votingAddress, this.selectedVoteObj.optionValue.toString());
                 this.btnSubmitVote.rightIcon.spin = false;
                 this.btnSubmitVote.rightIcon.visible = false;
             }
@@ -1468,9 +1331,32 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 this.btnSubmitVote.rightIcon.visible = false;
             }
         }
+        onAddressChanged() {
+            if (this.isSearching)
+                return;
+            const regex = new RegExp('^((0x[a-fA-F0-9]{40})|([13][a-km-zA-HJ-NP-Z1-9]{25,34})|(X[1-9A-HJ-NP-Za-km-z]{33})|(4[0-9AB][1-9A-HJ-NP-Za-km-z]{93}))$');
+            if (this.timer)
+                clearTimeout(this.timer);
+            this.timer = setTimeout(async () => {
+                const address = this.edtVotingAddress.value;
+                if (this.isSearching || (address && !regex.test(address)))
+                    return;
+                this.isSearching = true;
+                this.edtVotingAddress.enabled = false;
+                if (address) {
+                    this._data.votingAddress = address;
+                }
+                else {
+                    delete this._data.votingAddress;
+                }
+                await this.refreshUI();
+                this.edtVotingAddress.enabled = true;
+                this.isSearching = false;
+            }, 500);
+        }
         render() {
             return (this.$render("i-scom-dapp-container", { id: "dappContainer" },
-                this.$render("i-panel", { class: index_css_3.default, background: { color: Theme.background.main } },
+                this.$render("i-panel", { class: index_css_2.default, background: { color: Theme.background.main } },
                     this.$render("i-panel", null,
                         this.$render("i-vstack", { id: "loadingElm", class: "i-loading-overlay" },
                             this.$render("i-vstack", { class: "i-loading-spinner", horizontalAlignment: "center", verticalAlignment: "center" },
@@ -1479,6 +1365,9 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                         this.$render("i-vstack", { width: "100%", height: "100%", maxWidth: 1200, padding: { top: "1rem", bottom: "1rem", left: "1rem", right: "1rem" }, margin: { left: 'auto', right: 'auto' }, gap: "0.75rem" },
                             this.$render("i-label", { id: "lblTitle", font: { size: 'clamp(1rem, 0.8rem + 1vw, 2rem)', weight: 600 } }),
                             this.$render("i-panel", { padding: { top: "1rem", bottom: "1rem" } },
+                                this.$render("i-hstack", { width: "50%", padding: { bottom: "1rem" }, verticalAlignment: "center", gap: 4, mediaQueries: [{ maxWidth: '767px', properties: { width: "100%" } }] },
+                                    this.$render("i-label", { caption: "Address: ", font: { size: '1rem', color: Theme.text.third, bold: true } }),
+                                    this.$render("i-input", { id: "edtVotingAddress", class: index_css_2.inputStyle, height: 32, width: "100%", border: { radius: 6 }, font: { size: '1rem', color: Theme.text.third }, onChanged: this.onAddressChanged.bind(this) })),
                                 this.$render("i-stack", { direction: "horizontal", alignItems: "start", justifyContent: "space-between", mediaQueries: [{
                                             maxWidth: '767px', properties: {
                                                 direction: 'vertical', alignItems: 'start', justifyContent: 'start', gap: '1rem'
@@ -1553,7 +1442,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         }
     };
     GovernanceVoting = __decorate([
-        (0, components_6.customElements)('i-scom-governance-voting')
+        (0, components_5.customElements)('i-scom-governance-voting')
     ], GovernanceVoting);
     exports.default = GovernanceVoting;
 });
