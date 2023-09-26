@@ -1,8 +1,7 @@
 
 import ScomNetworkPicker from '@scom/scom-network-picker';
-import { State } from './store/index';
 
-export function getFormSchema(state: State) {
+export function getFormSchema() {
     return {
         dataSchema: {
             type: 'object',

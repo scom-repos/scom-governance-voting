@@ -240,7 +240,7 @@ export default class GovernanceVoting extends Module {
     }
 
     private _getActions(category?: string) {
-        const formSchema: any = getFormSchema(this.state);
+        const formSchema: any = getFormSchema();
         const rpcWallet = this.state.getRpcWallet();
         const actions: any[] = [];
         if (category && category !== 'offers') {
@@ -301,7 +301,7 @@ export default class GovernanceVoting extends Module {
     }
 
     private getProjectOwnerActions() {
-        const formSchema: any = getFormSchema(this.state);
+        const formSchema: any = getFormSchema();
         const rpcWallet = this.state.getRpcWallet();
         const actions: any[] = [
             {
