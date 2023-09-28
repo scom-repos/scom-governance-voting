@@ -221,8 +221,7 @@ declare module "@scom/scom-governance-voting/voteList.tsx" {
 /// <amd-module name="@scom/scom-governance-voting/formSchema.ts" />
 declare module "@scom/scom-governance-voting/formSchema.ts" {
     import ScomNetworkPicker from '@scom/scom-network-picker';
-    import { State } from "@scom/scom-governance-voting/store/index.ts";
-    export function getFormSchema(state: State): {
+    export function getFormSchema(): {
         dataSchema: {
             type: string;
             properties: {

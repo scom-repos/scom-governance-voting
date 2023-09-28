@@ -132,8 +132,9 @@ define("@scom/scom-governance-voting/store/utils.ts", ["require", "exports", "@i
             return core_1.coreAddress[chainId || this.getChainId()];
         }
         getGovToken(chainId) {
+            var _a;
             let govToken;
-            let address = this.getAddresses(chainId).GOV_TOKEN;
+            let address = (_a = this.getAddresses(chainId)) === null || _a === void 0 ? void 0 : _a.GOV_TOKEN;
             if (chainId == 43113 || chainId == 43114 || chainId == 42161 || chainId == 421613 || chainId == 80001 || chainId == 137) {
                 govToken = { address: address, decimals: 18, symbol: "veOSWAP", name: 'Vote-escrowed OSWAP' };
             }
@@ -300,24 +301,32 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
         return state.getGovToken(chainId).decimals || 18;
     }
     async function stakeOf(state, address) {
-        const wallet = state.getRpcWallet();
-        const chainId = state.getChainId();
-        const gov = state.getAddresses(chainId).OAXDEX_Governance;
-        const govContract = new oswap_openswap_contract_1.Contracts.OAXDEX_Governance(wallet, gov);
-        let result = await govContract.stakeOf(address);
-        result = eth_wallet_2.Utils.fromDecimals(result, govTokenDecimals(state));
+        let result = new eth_wallet_2.BigNumber(0);
+        try {
+            const wallet = state.getRpcWallet();
+            const chainId = state.getChainId();
+            const gov = state.getAddresses(chainId).OAXDEX_Governance;
+            const govContract = new oswap_openswap_contract_1.Contracts.OAXDEX_Governance(wallet, gov);
+            let stakeOf = await govContract.stakeOf(address);
+            result = eth_wallet_2.Utils.fromDecimals(stakeOf, govTokenDecimals(state));
+        }
+        catch (err) { }
         return result;
     }
     exports.stakeOf = stakeOf;
     async function freezedStake(state, address) {
-        const wallet = state.getRpcWallet();
-        const chainId = state.getChainId();
-        const gov = state.getAddresses(chainId).OAXDEX_Governance;
-        const govContract = new oswap_openswap_contract_1.Contracts.OAXDEX_Governance(wallet, gov);
-        let result = await govContract.freezedStake(address);
-        let minStakePeriod = await govContract.minStakePeriod();
-        let newResult = { amount: eth_wallet_2.Utils.fromDecimals(result.amount, govTokenDecimals(state)), timestamp: Number(result.timestamp) * 1000, lockTill: (Number(result.timestamp) + Number(minStakePeriod)) * 1000 };
-        return newResult;
+        let result = { amount: new eth_wallet_2.BigNumber(0), timestamp: 0, lockTill: 0 };
+        try {
+            const wallet = state.getRpcWallet();
+            const chainId = state.getChainId();
+            const gov = state.getAddresses(chainId).OAXDEX_Governance;
+            const govContract = new oswap_openswap_contract_1.Contracts.OAXDEX_Governance(wallet, gov);
+            let freezedStake = await govContract.freezedStake(address);
+            let minStakePeriod = await govContract.minStakePeriod();
+            result = { amount: eth_wallet_2.Utils.fromDecimals(freezedStake.amount, govTokenDecimals(state)), timestamp: Number(freezedStake.timestamp) * 1000, lockTill: (Number(freezedStake.timestamp) + Number(minStakePeriod)) * 1000 };
+        }
+        catch (err) { }
+        return result;
     }
     exports.freezedStake = freezedStake;
     function decodeVotingParamsRawData(rawData) {
@@ -728,7 +737,7 @@ define("@scom/scom-governance-voting/formSchema.ts", ["require", "exports", "@sc
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     exports.getFormSchema = void 0;
-    function getFormSchema(state) {
+    function getFormSchema() {
         return {
             dataSchema: {
                 type: 'object',
@@ -1010,7 +1019,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.executeReadyCallback();
         }
         _getActions(category) {
-            const formSchema = (0, formSchema_1.getFormSchema)(this.state);
+            const formSchema = (0, formSchema_1.getFormSchema)();
             const rpcWallet = this.state.getRpcWallet();
             const actions = [];
             if (category && category !== 'offers') {
@@ -1068,7 +1077,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             return actions;
         }
         getProjectOwnerActions() {
-            const formSchema = (0, formSchema_1.getFormSchema)(this.state);
+            const formSchema = (0, formSchema_1.getFormSchema)();
             const rpcWallet = this.state.getRpcWallet();
             const actions = [
                 {

@@ -10,24 +10,30 @@ function govTokenDecimals(state: State) {
 }
 
 export async function stakeOf(state: State, address: string) {
-    const wallet = state.getRpcWallet();
-    const chainId = state.getChainId();
-    const gov = state.getAddresses(chainId).OAXDEX_Governance;
-    const govContract = new Contracts.OAXDEX_Governance(wallet, gov);
-    let result = await govContract.stakeOf(address);
-    result = Utils.fromDecimals(result, govTokenDecimals(state));
+    let result = new BigNumber(0);
+    try {
+        const wallet = state.getRpcWallet();
+        const chainId = state.getChainId();
+        const gov = state.getAddresses(chainId).OAXDEX_Governance;
+        const govContract = new Contracts.OAXDEX_Governance(wallet, gov);
+        let stakeOf = await govContract.stakeOf(address);
+        result = Utils.fromDecimals(stakeOf, govTokenDecimals(state));
+    } catch (err) {}
     return result;
 }
 
 export async function freezedStake(state: State, address: string) {
-    const wallet = state.getRpcWallet();
-    const chainId = state.getChainId();
-    const gov = state.getAddresses(chainId).OAXDEX_Governance;
-    const govContract = new Contracts.OAXDEX_Governance(wallet, gov);
-    let result = await govContract.freezedStake(address);
-    let minStakePeriod = await govContract.minStakePeriod();
-    let newResult = { amount: Utils.fromDecimals(result.amount, govTokenDecimals(state)), timestamp: Number(result.timestamp) * 1000, lockTill: (Number(result.timestamp) + Number(minStakePeriod)) * 1000 };
-    return newResult;
+    let result: { amount: BigNumber, timestamp: number, lockTill: number } = { amount: new BigNumber(0), timestamp: 0, lockTill: 0 };
+    try {
+        const wallet = state.getRpcWallet();
+        const chainId = state.getChainId();
+        const gov = state.getAddresses(chainId).OAXDEX_Governance;
+        const govContract = new Contracts.OAXDEX_Governance(wallet, gov);
+        let freezedStake = await govContract.freezedStake(address);
+        let minStakePeriod = await govContract.minStakePeriod();
+        result = { amount: Utils.fromDecimals(freezedStake.amount, govTokenDecimals(state)), timestamp: Number(freezedStake.timestamp) * 1000, lockTill: (Number(freezedStake.timestamp) + Number(minStakePeriod)) * 1000 };
+    } catch (err) {}
+    return result;
 }
 
 function decodeVotingParamsRawData(rawData: string) {

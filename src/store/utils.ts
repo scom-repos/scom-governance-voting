@@ -99,7 +99,7 @@ export class State {
 
   getGovToken(chainId: number): ITokenObject {
     let govToken;
-    let address = this.getAddresses(chainId).GOV_TOKEN;
+    let address = this.getAddresses(chainId)?.GOV_TOKEN;
     if (chainId == 43113 || chainId == 43114 || chainId == 42161 || chainId == 421613 || chainId == 80001 || chainId == 137) {
       govToken = { address: address, decimals: 18, symbol: "veOSWAP", name: 'Vote-escrowed OSWAP' };
     }  else {
