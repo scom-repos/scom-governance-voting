@@ -28,7 +28,7 @@ export function getFormSchema() {
                 }
             ]
         },
-        customControls(rpcWalletId: string, getData: Function) {
+        customControls() {
             return {
                 "#/properties/chainId": {
                     render: () => {

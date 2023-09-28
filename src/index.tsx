@@ -295,7 +295,7 @@ export default class GovernanceVoting extends Module {
                 },
                 userInputDataSchema: formSchema.dataSchema,
                 userInputUISchema: formSchema.uiSchema,
-                customControls: formSchema.customControls(rpcWallet?.instanceId, this.getData.bind(this))
+                customControls: formSchema.customControls()
             });
         }
         return actions;
@@ -309,7 +309,7 @@ export default class GovernanceVoting extends Module {
                 name: 'Settings',
                 userInputDataSchema: formSchema.dataSchema,
                 userInputUISchema: formSchema.uiSchema,
-                customControls: formSchema.customControls(rpcWallet?.instanceId, this.getData.bind(this))
+                customControls: formSchema.customControls()
             }
         ];
         return actions;
