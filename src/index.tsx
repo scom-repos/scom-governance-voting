@@ -666,7 +666,7 @@ export default class GovernanceVoting extends Module {
     }
 
     private openModal() {
-        this.edtVotingAddress.value = this.lblVotingAddress.caption;
+        this.edtVotingAddress.value = this._data.votingAddress || "";
         this.mdUpdateAddress.visible = true;
     }
 

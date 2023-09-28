@@ -1366,7 +1366,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.refreshUI();
         }
         openModal() {
-            this.edtVotingAddress.value = this.lblVotingAddress.caption;
+            this.edtVotingAddress.value = this._data.votingAddress || "";
             this.mdUpdateAddress.visible = true;
         }
         render() {
