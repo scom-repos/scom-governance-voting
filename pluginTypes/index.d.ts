@@ -242,7 +242,7 @@ declare module "@scom/scom-governance-voting/formSchema.ts" {
                 scope: string;
             }[];
         };
-        customControls(rpcWalletId: string, getData: Function): {
+        customControls(): {
             "#/properties/chainId": {
                 render: () => ScomNetworkPicker;
                 getData: (control: ScomNetworkPicker) => number;

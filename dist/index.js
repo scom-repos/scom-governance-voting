@@ -775,7 +775,7 @@ define("@scom/scom-governance-voting/formSchema.ts", ["require", "exports", "@sc
                     }
                 ]
             },
-            customControls(rpcWalletId, getData) {
+            customControls() {
                 return {
                     "#/properties/chainId": {
                         render: () => {
@@ -1082,7 +1082,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     },
                     userInputDataSchema: formSchema.dataSchema,
                     userInputUISchema: formSchema.uiSchema,
-                    customControls: formSchema.customControls(rpcWallet === null || rpcWallet === void 0 ? void 0 : rpcWallet.instanceId, this.getData.bind(this))
+                    customControls: formSchema.customControls()
                 });
             }
             return actions;
@@ -1095,7 +1095,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     name: 'Settings',
                     userInputDataSchema: formSchema.dataSchema,
                     userInputUISchema: formSchema.uiSchema,
-                    customControls: formSchema.customControls(rpcWallet === null || rpcWallet === void 0 ? void 0 : rpcWallet.instanceId, this.getData.bind(this))
+                    customControls: formSchema.customControls()
                 }
             ];
             return actions;
