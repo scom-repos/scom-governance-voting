@@ -216,7 +216,7 @@ define("@scom/scom-governance-voting/data.json.ts", ["require", "exports"], func
 define("@scom/scom-governance-voting/index.css.ts", ["require", "exports", "@ijstech/components"], function (require, exports, components_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.inputStyle = exports.comboBoxStyle = exports.voteListStyle = void 0;
+    exports.modalStyle = exports.inputStyle = exports.comboBoxStyle = exports.voteListStyle = void 0;
     const Theme = components_3.Styles.Theme.ThemeVars;
     exports.default = components_3.Styles.style({
         $nest: {
@@ -288,6 +288,17 @@ define("@scom/scom-governance-voting/index.css.ts", ["require", "exports", "@ijs
             'input': {
                 color: Theme.text.third,
                 padding: '0.375rem 0.5rem'
+            }
+        }
+    });
+    exports.modalStyle = components_3.Styles.style({
+        $nest: {
+            '.modal': {
+                padding: '1rem 1.5rem',
+                borderRadius: '0.5rem'
+            },
+            '.modal .i-modal_header': {
+                paddingBottom: '1.5rem'
             }
         }
     });
@@ -849,7 +860,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     if (!this._data.votingAddress) {
                         this.latestVotingAddress = await (0, api_2.getLatestVotingAddress)(this.state, this.chainId);
                     }
-                    this.edtVotingAddress.value = this.votingAddress;
+                    this.lblVotingAddress.caption = this.votingAddress;
                     this.updateBalanceStack();
                     await this.getVotingResult();
                     const connected = (0, index_1.isClientWalletConnected)();
@@ -1340,28 +1351,23 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 this.btnSubmitVote.rightIcon.visible = false;
             }
         }
-        onAddressChanged() {
-            if (this.isSearching)
-                return;
+        updateAddress() {
             const regex = new RegExp('^((0x[a-fA-F0-9]{40})|([13][a-km-zA-HJ-NP-Z1-9]{25,34})|(X[1-9A-HJ-NP-Za-km-z]{33})|(4[0-9AB][1-9A-HJ-NP-Za-km-z]{93}))$');
-            if (this.timer)
-                clearTimeout(this.timer);
-            this.timer = setTimeout(async () => {
-                const address = this.edtVotingAddress.value;
-                if (this.isSearching || (address && !regex.test(address)))
-                    return;
-                this.isSearching = true;
-                this.edtVotingAddress.enabled = false;
-                if (address) {
-                    this._data.votingAddress = address;
-                }
-                else {
-                    delete this._data.votingAddress;
-                }
-                await this.refreshUI();
-                this.edtVotingAddress.enabled = true;
-                this.isSearching = false;
-            }, 500);
+            const address = this.edtVotingAddress.value;
+            if ((address && !regex.test(address)))
+                return;
+            if (address) {
+                this._data.votingAddress = address;
+            }
+            else {
+                delete this._data.votingAddress;
+            }
+            this.mdUpdateAddress.visible = false;
+            this.refreshUI();
+        }
+        openModal() {
+            this.edtVotingAddress.value = this.lblVotingAddress.caption;
+            this.mdUpdateAddress.visible = true;
         }
         render() {
             return (this.$render("i-scom-dapp-container", { id: "dappContainer" },
@@ -1374,21 +1380,23 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                         this.$render("i-vstack", { width: "100%", height: "100%", maxWidth: 1200, padding: { top: "1rem", bottom: "1rem", left: "1rem", right: "1rem" }, margin: { left: 'auto', right: 'auto' }, gap: "0.75rem" },
                             this.$render("i-label", { id: "lblTitle", font: { size: 'clamp(1rem, 0.8rem + 1vw, 2rem)', weight: 600 } }),
                             this.$render("i-panel", { padding: { top: "1rem", bottom: "1rem" } },
-                                this.$render("i-hstack", { width: "50%", padding: { bottom: "1rem" }, verticalAlignment: "center", gap: 4, mediaQueries: [{ maxWidth: '767px', properties: { width: "100%" } }] },
+                                this.$render("i-hstack", { padding: { bottom: "1rem" }, verticalAlignment: "center", gap: 4, wrap: "wrap" },
                                     this.$render("i-label", { caption: "Address: ", font: { size: '1rem', color: Theme.text.third, bold: true } }),
-                                    this.$render("i-input", { id: "edtVotingAddress", class: index_css_2.inputStyle, height: 32, width: "100%", border: { radius: 6 }, font: { size: '1rem', color: Theme.text.third }, onChanged: this.onAddressChanged.bind(this) })),
+                                    this.$render("i-label", { id: "lblVotingAddress", font: { size: '1rem', color: Theme.text.third } }),
+                                    this.$render("i-button", { class: "btn-os", height: 28, width: 28, icon: { name: 'edit', height: 14, width: 14 }, margin: { left: 4 }, onClick: this.openModal.bind(this) }),
+                                    this.$render("i-button", { class: "btn-os", height: 28, width: 28, icon: { name: 'sync', height: 14, width: 14 }, margin: { left: 4 }, onClick: this.refreshUI.bind(this) })),
                                 this.$render("i-stack", { direction: "horizontal", alignItems: "start", justifyContent: "space-between", mediaQueries: [{
                                             maxWidth: '767px', properties: {
                                                 direction: 'vertical', alignItems: 'start', justifyContent: 'start', gap: '1rem'
                                             }
                                         }] },
                                     this.$render("i-vstack", { gap: "0.5rem" },
-                                        this.$render("i-hstack", { gap: 4, verticalAlignment: "center" },
+                                        this.$render("i-hstack", { gap: 4, verticalAlignment: "center", wrap: "wrap" },
                                             this.$render("i-label", { caption: "Staked Balance: ", font: { size: '1rem', color: Theme.text.third, bold: true } }),
                                             this.$render("i-label", { id: "lblStakedBalance", font: { size: '1rem', color: Theme.text.third } })),
                                         this.$render("i-label", { id: "lblFreezeStakeAmount", visible: false })),
                                     this.$render("i-vstack", null,
-                                        this.$render("i-hstack", { gap: 4, verticalAlignment: "center" },
+                                        this.$render("i-hstack", { gap: 4, verticalAlignment: "center", wrap: "wrap" },
                                             this.$render("i-label", { caption: "Voting Balance: ", font: { size: '1rem', color: Theme.text.third, bold: true } }),
                                             this.$render("i-label", { id: "lblVotingBalance", font: { size: '1rem', color: Theme.text.third } }))))),
                             this.$render("i-vstack", { padding: { top: '1rem', bottom: '1rem' }, gap: "0.75rem" },
@@ -1446,6 +1454,13 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                                         this.$render("i-scom-governance-voting-vote-list", { id: "governanceVoteList", onSelect: this.selectVote.bind(this) })))),
                             this.$render("i-vstack", { width: "100%", padding: { left: "1rem", right: "1rem" } },
                                 this.$render("i-button", { id: 'btnSubmitVote', class: 'btn-os', height: 'auto', caption: "Submit Vote", padding: { top: '0.75rem', bottom: '0.75rem', left: '1.5rem', right: '1.5rem' }, border: { radius: 5 }, font: { weight: 600 }, rightIcon: { spin: true, visible: false }, enabled: false, onClick: this.onSubmitVote.bind(this) })))),
+                    this.$render("i-modal", { id: "mdUpdateAddress", class: index_css_2.modalStyle, title: "Update Address", closeIcon: { name: 'times' }, height: 'auto', maxWidth: 640, closeOnBackdropClick: false },
+                        this.$render("i-panel", null,
+                            this.$render("i-vstack", { gap: 4 },
+                                this.$render("i-label", { caption: "Address: ", font: { size: '1rem', color: Theme.text.third, bold: true } }),
+                                this.$render("i-input", { id: "edtVotingAddress", class: index_css_2.inputStyle, height: 32, width: "100%", border: { radius: 6 }, font: { size: '1rem', color: Theme.text.third } })),
+                            this.$render("i-hstack", { verticalAlignment: "center", horizontalAlignment: "center", gap: "10px", margin: { top: 20, bottom: 10 } },
+                                this.$render("i-button", { class: "btn-os", height: 'auto', padding: { top: '0.75rem', bottom: '0.75rem', left: '1.5rem', right: '1.5rem' }, border: { radius: 5 }, font: { weight: 600 }, caption: "Confirm", onClick: this.updateAddress.bind(this) })))),
                     this.$render("i-scom-tx-status-modal", { id: "txStatusModal" }),
                     this.$render("i-scom-wallet-modal", { id: "mdWallet", wallets: [] }))));
         }

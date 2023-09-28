@@ -79,3 +79,15 @@ export const inputStyle = Styles.style({
         }
     }
 })
+
+export const modalStyle = Styles.style({
+  $nest: {
+    '.modal': {
+      padding: '1rem 1.5rem',
+      borderRadius: '0.5rem'
+    },
+    '.modal .i-modal_header': {
+      paddingBottom: '1.5rem'
+    }
+  }
+})

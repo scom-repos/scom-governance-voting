@@ -7,6 +7,7 @@ import {
     HStack,
     Input,
     Label,
+    Modal,
     Module,
     moment,
     Panel,
@@ -20,7 +21,7 @@ import { IGovernanceVoting, IOption, ProposalType } from "./interface";
 import { isClientWalletConnected, State } from "./store/index";
 import Assets from './assets';
 import configData from './data.json';
-import customStyles, { inputStyle } from './index.css';
+import customStyles, { inputStyle, modalStyle } from './index.css';
 import { BigNumber, Constants, Wallet } from "@ijstech/eth-wallet";
 import { GovernanceVoteList } from './voteList';
 import { execute, freezedStake, getLatestVotingAddress, getVotingResult, stakeOf, vote } from "./api";
@@ -68,6 +69,8 @@ export default class GovernanceVoting extends Module {
     private dappContainer: ScomDappContainer;
     private loadingElm: Panel;
     private lblTitle: Label;
+    private lblVotingAddress: Label;
+    private mdUpdateAddress: Modal;
     private edtVotingAddress: Input;
     private lblStakedBalance: Label;
     private lblFreezeStakeAmount: Label;
@@ -119,8 +122,6 @@ export default class GovernanceVoting extends Module {
     private stakeOf: BigNumber = new BigNumber(0);
     private expiry: Date;
     private isCanExecute: boolean;
-    private timer: any;
-    private isSearching: boolean;
     private latestVotingAddress: string;
 
     private get chainId() {
@@ -444,7 +445,7 @@ export default class GovernanceVoting extends Module {
             if (!this._data.votingAddress) {
                 this.latestVotingAddress = await getLatestVotingAddress(this.state, this.chainId);
             }
-            this.edtVotingAddress.value = this.votingAddress;
+            this.lblVotingAddress.caption = this.votingAddress;
             this.updateBalanceStack();
             await this.getVotingResult();
             const connected = isClientWalletConnected();
@@ -651,24 +652,22 @@ export default class GovernanceVoting extends Module {
         }
     }
 
-    private onAddressChanged() {
-        if (this.isSearching) return;
+    private updateAddress() {
         const regex = new RegExp('^((0x[a-fA-F0-9]{40})|([13][a-km-zA-HJ-NP-Z1-9]{25,34})|(X[1-9A-HJ-NP-Za-km-z]{33})|(4[0-9AB][1-9A-HJ-NP-Za-km-z]{93}))$');
-        if (this.timer) clearTimeout(this.timer);
-        this.timer = setTimeout(async () => {
-            const address = this.edtVotingAddress.value;
-            if (this.isSearching || (address && !regex.test(address))) return;
-            this.isSearching = true;
-            this.edtVotingAddress.enabled = false;
-            if (address) {
-                this._data.votingAddress = address;
-            } else {
-                delete this._data.votingAddress;
-            }
-            await this.refreshUI();
-            this.edtVotingAddress.enabled = true;
-            this.isSearching = false;
-        }, 500);
+        const address = this.edtVotingAddress.value;
+        if ((address && !regex.test(address))) return;
+        if (address) {
+            this._data.votingAddress = address;
+        } else {
+            delete this._data.votingAddress;
+        }
+        this.mdUpdateAddress.visible = false;
+        this.refreshUI();
+    }
+
+    private openModal() {
+        this.edtVotingAddress.value = this.lblVotingAddress.caption;
+        this.mdUpdateAddress.visible = true;
     }
 
     render() {
@@ -698,23 +697,25 @@ export default class GovernanceVoting extends Module {
                         >
                             <i-label id="lblTitle" font={{ size: 'clamp(1rem, 0.8rem + 1vw, 2rem)', weight: 600 }}></i-label>
                             <i-panel padding={{ top: "1rem", bottom: "1rem" }}>
-                                <i-hstack
-                                    width="50%"
-                                    padding={{ bottom: "1rem" }}
-                                    verticalAlignment="center"
-                                    gap={4}
-                                    mediaQueries={[{ maxWidth: '767px', properties: { width: "100%" } }]}
-                                >
+                                <i-hstack padding={{ bottom: "1rem" }} verticalAlignment="center" gap={4} wrap="wrap">
                                     <i-label caption="Address: " font={{ size: '1rem', color: Theme.text.third, bold: true }}></i-label>
-                                    <i-input
-                                        id="edtVotingAddress"
-                                        class={inputStyle}
-                                        height={32}
-                                        width="100%"
-                                        border={{ radius: 6 }}
-                                        font={{ size: '1rem', color: Theme.text.third }}
-                                        onChanged={this.onAddressChanged.bind(this)}
-                                    ></i-input>
+                                    <i-label id="lblVotingAddress" font={{ size: '1rem', color: Theme.text.third }}></i-label>
+                                    <i-button
+                                        class="btn-os"
+                                        height={28}
+                                        width={28}
+                                        icon={{ name: 'edit', height: 14, width: 14 }}
+                                        margin={{ left: 4 }}
+                                        onClick={this.openModal.bind(this)}
+                                    ></i-button>
+                                    <i-button
+                                        class="btn-os"
+                                        height={28}
+                                        width={28}
+                                        icon={{ name: 'sync', height: 14, width: 14 }}
+                                        margin={{ left: 4 }}
+                                        onClick={this.refreshUI.bind(this)}
+                                    ></i-button>
                                 </i-hstack>
                                 <i-stack
                                     direction="horizontal" alignItems="start" justifyContent="space-between"
@@ -725,14 +726,14 @@ export default class GovernanceVoting extends Module {
                                     }]}
                                 >
                                     <i-vstack gap="0.5rem">
-                                        <i-hstack gap={4} verticalAlignment="center">
+                                        <i-hstack gap={4} verticalAlignment="center" wrap="wrap">
                                             <i-label caption="Staked Balance: " font={{ size: '1rem', color: Theme.text.third, bold: true }}></i-label>
                                             <i-label id="lblStakedBalance" font={{ size: '1rem', color: Theme.text.third }}></i-label>
                                         </i-hstack>
                                         <i-label id="lblFreezeStakeAmount" visible={false}></i-label>
                                     </i-vstack>
                                     <i-vstack>
-                                        <i-hstack gap={4} verticalAlignment="center">
+                                        <i-hstack gap={4} verticalAlignment="center" wrap="wrap">
                                             <i-label caption="Voting Balance: " font={{ size: '1rem', color: Theme.text.third, bold: true }}></i-label>
                                             <i-label id="lblVotingBalance" font={{ size: '1rem', color: Theme.text.third }}></i-label>
                                         </i-hstack>
@@ -929,6 +930,40 @@ export default class GovernanceVoting extends Module {
                             </i-vstack>
                         </i-vstack>
                     </i-panel>
+                    <i-modal
+                        id="mdUpdateAddress"
+                        class={modalStyle}
+                        title="Update Address"
+                        closeIcon={{ name: 'times' }}
+                        height='auto'
+                        maxWidth={640}
+                        closeOnBackdropClick={false}
+                    >
+                        <i-panel>
+                            <i-vstack gap={4}>
+                                <i-label caption="Address: " font={{ size: '1rem', color: Theme.text.third, bold: true }}></i-label>
+                                <i-input
+                                    id="edtVotingAddress"
+                                    class={inputStyle}
+                                    height={32}
+                                    width="100%"
+                                    border={{ radius: 6 }}
+                                    font={{ size: '1rem', color: Theme.text.third }}
+                                ></i-input>
+                            </i-vstack>
+                            <i-hstack verticalAlignment="center" horizontalAlignment="center" gap="10px" margin={{ top: 20, bottom: 10 }}>
+                                <i-button
+                                    class="btn-os"
+                                    height='auto'
+                                    padding={{ top: '0.75rem', bottom: '0.75rem', left: '1.5rem', right: '1.5rem' }}
+                                    border={{ radius: 5 }}
+                                    font={{ weight: 600 }}
+                                    caption="Confirm"
+                                    onClick={this.updateAddress.bind(this)}
+                                />
+                            </i-hstack>
+                        </i-panel>
+                    </i-modal>
                     <i-scom-tx-status-modal id="txStatusModal" />
                     <i-scom-wallet-modal id="mdWallet" wallets={[]} />
                 </i-panel>

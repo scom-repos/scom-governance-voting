@@ -149,6 +149,7 @@ declare module "@scom/scom-governance-voting/index.css.ts" {
     export const voteListStyle: string;
     export const comboBoxStyle: string;
     export const inputStyle: string;
+    export const modalStyle: string;
 }
 /// <amd-module name="@scom/scom-governance-voting/api.ts" />
 declare module "@scom/scom-governance-voting/api.ts" {
@@ -276,6 +277,8 @@ declare module "@scom/scom-governance-voting" {
         private dappContainer;
         private loadingElm;
         private lblTitle;
+        private lblVotingAddress;
+        private mdUpdateAddress;
         private edtVotingAddress;
         private lblStakedBalance;
         private lblFreezeStakeAmount;
@@ -321,8 +324,6 @@ declare module "@scom/scom-governance-voting" {
         private stakeOf;
         private expiry;
         private isCanExecute;
-        private timer;
-        private isSearching;
         private latestVotingAddress;
         private get chainId();
         get defaultChainId(): number;
@@ -398,7 +399,8 @@ declare module "@scom/scom-governance-voting" {
         private registerSendTxEvents;
         private handleExecute;
         private onSubmitVote;
-        private onAddressChanged;
+        private updateAddress;
+        private openModal;
         render(): any;
     }
 }
