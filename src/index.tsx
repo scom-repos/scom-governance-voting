@@ -625,7 +625,7 @@ export default class GovernanceVoting extends Module {
                 this.showResultMessage('warning', `Executing proposal ${votingAddress}`);
                 this.registerSendTxEvents();
                 const receipt = await execute(votingAddress);
-                if (receipt) {
+                if (this.state.flowInvokerId && receipt) {
                     const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                     const transactionsInfoArr = [
                         {
@@ -670,7 +670,7 @@ export default class GovernanceVoting extends Module {
             const chainId = this.chainId;
             const receipt = await vote(votingAddress, this.selectedVoteObj.optionValue.toString());
 
-            if (receipt) {
+            if (this.state.flowInvokerId && receipt) {
                 const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                 const transactionsInfoArr = [
                     {

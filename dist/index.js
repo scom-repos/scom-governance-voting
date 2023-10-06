@@ -1440,7 +1440,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     this.showResultMessage('warning', `Executing proposal ${votingAddress}`);
                     this.registerSendTxEvents();
                     const receipt = await (0, api_2.execute)(votingAddress);
-                    if (receipt) {
+                    if (this.state.flowInvokerId && receipt) {
                         const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                         const transactionsInfoArr = [
                             {
@@ -1485,7 +1485,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 const votingAddress = this.votingAddress;
                 const chainId = this.chainId;
                 const receipt = await (0, api_2.vote)(votingAddress, this.selectedVoteObj.optionValue.toString());
-                if (receipt) {
+                if (this.state.flowInvokerId && receipt) {
                     const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                     const transactionsInfoArr = [
                         {
