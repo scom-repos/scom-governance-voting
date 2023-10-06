@@ -620,9 +620,30 @@ export default class GovernanceVoting extends Module {
             if (this.isCanExecute) {
                 this.btnExecute.rightIcon.spin = true;
                 this.btnExecute.rightIcon.visible = true;
-                this.showResultMessage('warning', `Executing proposal ${this.votingAddress}`);
+                const votingAddress = this.votingAddress;
+                const chainId = this.chainId;
+                this.showResultMessage('warning', `Executing proposal ${votingAddress}`);
                 this.registerSendTxEvents();
-                await execute(this.votingAddress);
+                const receipt = await execute(votingAddress);
+                if (receipt) {
+                    const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
+                    const transactionsInfoArr = [
+                        {
+                            desc: `Execute proposal ${votingAddress}`,
+                            chainId: chainId,
+                            fromToken: null,
+                            toToken: null,
+                            fromTokenAmount: '',
+                            toTokenAmount: '-',
+                            hash: receipt.transactionHash,
+                            timestamp
+                        }
+                    ];
+                    const eventName = `${this.state.flowInvokerId}:addTransactions`;
+                    application.EventBus.dispatch(eventName, {
+                        list: transactionsInfoArr
+                    });
+                }
                 this.btnExecute.rightIcon.spin = false;
                 this.btnExecute.rightIcon.visible = false;
             }
@@ -644,7 +665,30 @@ export default class GovernanceVoting extends Module {
             this.btnSubmitVote.rightIcon.visible = true;
             this.showResultMessage('warning');
             this.registerSendTxEvents();
-            await vote(this.votingAddress, this.selectedVoteObj.optionValue.toString());
+            const voteOption = this.selectedVoteObj.optionText;
+            const votingAddress = this.votingAddress;
+            const chainId = this.chainId;
+            const receipt = await vote(votingAddress, this.selectedVoteObj.optionValue.toString());
+
+            if (receipt) {
+                const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
+                const transactionsInfoArr = [
+                    {
+                        desc: `Vote on proposal ${votingAddress}: ${voteOption}`,
+                        chainId: chainId,
+                        fromToken: null,
+                        toToken: null,
+                        fromTokenAmount: '',
+                        toTokenAmount: '-',
+                        hash: receipt.transactionHash,
+                        timestamp
+                    }
+                ];
+                const eventName = `${this.state.flowInvokerId}:addTransactions`;
+                application.EventBus.dispatch(eventName, {
+                    list: transactionsInfoArr
+                });
+            }
             this.btnSubmitVote.rightIcon.spin = false;
             this.btnSubmitVote.rightIcon.visible = false;
         } catch (err) {

@@ -1435,9 +1435,30 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 if (this.isCanExecute) {
                     this.btnExecute.rightIcon.spin = true;
                     this.btnExecute.rightIcon.visible = true;
-                    this.showResultMessage('warning', `Executing proposal ${this.votingAddress}`);
+                    const votingAddress = this.votingAddress;
+                    const chainId = this.chainId;
+                    this.showResultMessage('warning', `Executing proposal ${votingAddress}`);
                     this.registerSendTxEvents();
-                    await (0, api_2.execute)(this.votingAddress);
+                    const receipt = await (0, api_2.execute)(votingAddress);
+                    if (receipt) {
+                        const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
+                        const transactionsInfoArr = [
+                            {
+                                desc: `Execute proposal ${votingAddress}`,
+                                chainId: chainId,
+                                fromToken: null,
+                                toToken: null,
+                                fromTokenAmount: '',
+                                toTokenAmount: '-',
+                                hash: receipt.transactionHash,
+                                timestamp
+                            }
+                        ];
+                        const eventName = `${this.state.flowInvokerId}:addTransactions`;
+                        components_6.application.EventBus.dispatch(eventName, {
+                            list: transactionsInfoArr
+                        });
+                    }
                     this.btnExecute.rightIcon.spin = false;
                     this.btnExecute.rightIcon.visible = false;
                 }
@@ -1460,7 +1481,29 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 this.btnSubmitVote.rightIcon.visible = true;
                 this.showResultMessage('warning');
                 this.registerSendTxEvents();
-                await (0, api_2.vote)(this.votingAddress, this.selectedVoteObj.optionValue.toString());
+                const voteOption = this.selectedVoteObj.optionText;
+                const votingAddress = this.votingAddress;
+                const chainId = this.chainId;
+                const receipt = await (0, api_2.vote)(votingAddress, this.selectedVoteObj.optionValue.toString());
+                if (receipt) {
+                    const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
+                    const transactionsInfoArr = [
+                        {
+                            desc: `Vote on proposal ${votingAddress}: ${voteOption}`,
+                            chainId: chainId,
+                            fromToken: null,
+                            toToken: null,
+                            fromTokenAmount: '',
+                            toTokenAmount: '-',
+                            hash: receipt.transactionHash,
+                            timestamp
+                        }
+                    ];
+                    const eventName = `${this.state.flowInvokerId}:addTransactions`;
+                    components_6.application.EventBus.dispatch(eventName, {
+                        list: transactionsInfoArr
+                    });
+                }
                 this.btnSubmitVote.rightIcon.spin = false;
                 this.btnSubmitVote.rightIcon.visible = false;
             }
