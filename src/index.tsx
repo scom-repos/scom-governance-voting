@@ -1,6 +1,7 @@
 import {
     application,
     Button,
+    Control,
     ControlElement,
     customElements,
     FormatUtils,
@@ -27,6 +28,7 @@ import { GovernanceVoteList } from './voteList';
 import { execute, freezedStake, getLatestVotingAddress, getVotingResult, stakeOf, vote } from "./api";
 import { tokenStore } from "@scom/scom-token-list";
 import { getFormSchema } from "./formSchema";
+import ScomGovernanceVotingFlowInitialSetup from "./flow/initialSetup";
 
 const Theme = Styles.Theme.ThemeVars;
 
@@ -516,7 +518,7 @@ export default class GovernanceVoting extends Module {
 
     private async getVotingResult() {
         const wallet = this.state.getRpcWallet();
-        if (this._data.votingAddress && wallet.chainId != this._data.chainId) {
+        if (this._data.votingAddress && this._data.chainId && wallet.chainId != this._data.chainId) {
             await wallet.switchNetwork(this._data.chainId);
         }
         const votingResult = await getVotingResult(this.state, this.votingAddress);
@@ -969,5 +971,36 @@ export default class GovernanceVoting extends Module {
                 </i-panel>
             </i-scom-dapp-container>
         )
+    }
+
+    async handleFlowStage(target: Control, stage: string, options: any) {
+        let widget;
+        if (stage === 'initialSetup') {
+            widget = new ScomGovernanceVotingFlowInitialSetup();
+            target.appendChild(widget);
+            await widget.ready();
+            let properties = options.properties;
+            let tokenRequirements = options.tokenRequirements;
+            let invokerId = options.invokerId;
+            await widget.setData({
+                executionProperties: properties,
+                tokenRequirements,
+                invokerId
+            });
+        } else {
+            widget = this;
+            target.appendChild(widget);
+            await widget.ready();
+            let properties = options.properties;
+            let tag = options.tag;
+            let invokerId = options.invokerId;
+            this.state.setFlowInvokerId(invokerId);
+            await this.setData(properties);
+            if (tag) {
+                this.setTag(tag);
+            }
+        }
+
+        return { widget };
     }
 } 

@@ -93,8 +93,10 @@ declare module "@scom/scom-governance-voting/store/utils.ts" {
         };
         rpcWalletId: string;
         approvalModel: ERC20ApprovalModel;
+        flowInvokerId: string;
         constructor(options: any);
         private initData;
+        setFlowInvokerId(id: string): void;
         initRpcWallet(defaultChainId: number): string;
         getRpcWallet(): import("@ijstech/eth-wallet").IRpcWallet;
         isRpcWalletConnected(): boolean;
@@ -150,6 +152,7 @@ declare module "@scom/scom-governance-voting/index.css.ts" {
     export const comboBoxStyle: string;
     export const inputStyle: string;
     export const modalStyle: string;
+    export const flowInputStyle: string;
 }
 /// <amd-module name="@scom/scom-governance-voting/api.ts" />
 declare module "@scom/scom-governance-voting/api.ts" {
@@ -251,9 +254,49 @@ declare module "@scom/scom-governance-voting/formSchema.ts" {
         };
     };
 }
+/// <amd-module name="@scom/scom-governance-voting/flow/initialSetup.tsx" />
+declare module "@scom/scom-governance-voting/flow/initialSetup.tsx" {
+    import { Container, ControlElement, Module } from "@ijstech/components";
+    interface ScomGovernanceVotingFlowInitialSetupElement extends ControlElement {
+        data?: any;
+    }
+    global {
+        namespace JSX {
+            interface IntrinsicElements {
+                ['i-scom-governanace-voting-flow-initial-setup']: ScomGovernanceVotingFlowInitialSetupElement;
+            }
+        }
+    }
+    export default class ScomGovernanceVotingFlowInitialSetup extends Module {
+        private lblConnectedStatus;
+        private btnConnectWallet;
+        private edtVotingAddress;
+        private mdWallet;
+        private state;
+        private tokenRequirements;
+        private executionProperties;
+        private invokerId;
+        private $eventBus;
+        private walletEvents;
+        constructor(parent?: Container, options?: ControlElement);
+        private get rpcWallet();
+        private get chainId();
+        private resetRpcWallet;
+        setData(value: any): Promise<void>;
+        private initWallet;
+        private initializeWidgetConfig;
+        private connectWallet;
+        private updateConnectStatus;
+        private registerEvents;
+        onHide(): void;
+        init(): void;
+        private handleClickStart;
+        render(): any;
+    }
+}
 /// <amd-module name="@scom/scom-governance-voting" />
 declare module "@scom/scom-governance-voting" {
-    import { ControlElement, Module } from "@ijstech/components";
+    import { Control, ControlElement, Module } from "@ijstech/components";
     import { INetworkConfig } from "@scom/scom-network-picker";
     import { IWalletPlugin } from "@scom/scom-wallet-modal";
     import { IGovernanceVoting } from "@scom/scom-governance-voting/interface.ts";
@@ -402,5 +445,8 @@ declare module "@scom/scom-governance-voting" {
         private updateAddress;
         private openModal;
         render(): any;
+        handleFlowStage(target: Control, stage: string, options: any): Promise<{
+            widget: any;
+        }>;
     }
 }

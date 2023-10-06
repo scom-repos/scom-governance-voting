@@ -91,3 +91,11 @@ export const modalStyle = Styles.style({
     }
   }
 })
+
+export const flowInputStyle = Styles.style({
+    $nest: {
+        'input': {
+            padding: '0.375rem 0.5rem'
+        }
+    }
+})
