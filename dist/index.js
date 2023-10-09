@@ -69,9 +69,6 @@ define("@scom/scom-governance-voting/store/utils.ts", ["require", "exports", "@i
                 this.setNetworkList(options.networks, options.infuraId);
             }
         }
-        setFlowInvokerId(id) {
-            this.flowInvokerId = id;
-        }
         initRpcWallet(defaultChainId) {
             var _a, _b, _c;
             if (this.rpcWalletId) {
@@ -814,11 +811,15 @@ define("@scom/scom-governance-voting/flow/initialSetup.tsx", ["require", "export
     Object.defineProperty(exports, "__esModule", { value: true });
     const Theme = components_5.Styles.Theme.ThemeVars;
     let ScomGovernanceVotingFlowInitialSetup = class ScomGovernanceVotingFlowInitialSetup extends components_5.Module {
-        constructor(parent, options) {
-            super(parent, options);
+        constructor() {
+            super(...arguments);
             this.walletEvents = [];
-            this.state = new index_1.State({});
-            this.$eventBus = components_5.application.EventBus;
+        }
+        get state() {
+            return this._state;
+        }
+        set state(value) {
+            this._state = value;
         }
         get rpcWallet() {
             return this.state.getRpcWallet();
@@ -832,7 +833,6 @@ define("@scom/scom-governance-voting/flow/initialSetup.tsx", ["require", "export
         async setData(value) {
             this.executionProperties = value.executionProperties;
             this.tokenRequirements = value.tokenRequirements;
-            this.invokerId = value.invokerId;
             await this.resetRpcWallet();
             await this.initializeWidgetConfig();
         }
@@ -890,13 +890,13 @@ define("@scom/scom-governance-voting/flow/initialSetup.tsx", ["require", "export
             this.registerEvents();
         }
         async handleClickStart() {
-            let eventName = `${this.invokerId}:nextStep`;
             this.executionProperties.votingAddress = this.edtVotingAddress.value || "";
-            this.$eventBus.dispatch(eventName, {
-                isInitialSetup: true,
-                tokenRequirements: this.tokenRequirements,
-                executionProperties: this.executionProperties
-            });
+            if (this.state.handleNextFlowStep)
+                this.state.handleNextFlowStep({
+                    isInitialSetup: true,
+                    tokenRequirements: this.tokenRequirements,
+                    executionProperties: this.executionProperties
+                });
         }
         render() {
             return (this.$render("i-vstack", { gap: "1rem", padding: { top: 10, bottom: 10, left: 20, right: 20 } },
@@ -938,8 +938,74 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         setMinStakePeriod: 'Set Minimum Stake Period',
     };
     let GovernanceVoting = class GovernanceVoting extends components_6.Module {
-        constructor() {
-            super(...arguments);
+        get chainId() {
+            return this.state.getChainId();
+        }
+        get defaultChainId() {
+            return this._data.defaultChainId;
+        }
+        set defaultChainId(value) {
+            this._data.defaultChainId = value;
+        }
+        get wallets() {
+            var _a;
+            return (_a = this._data.wallets) !== null && _a !== void 0 ? _a : [];
+        }
+        set wallets(value) {
+            this._data.wallets = value;
+        }
+        get networks() {
+            var _a;
+            return (_a = this._data.networks) !== null && _a !== void 0 ? _a : [];
+        }
+        set networks(value) {
+            this._data.networks = value;
+        }
+        get showHeader() {
+            var _a;
+            return (_a = this._data.showHeader) !== null && _a !== void 0 ? _a : true;
+        }
+        set showHeader(value) {
+            this._data.showHeader = value;
+        }
+        get votingAddress() {
+            return this._data.votingAddress || this.latestVotingAddress || "";
+        }
+        get isExecutive() {
+            return this.proposalType === 'Executive';
+        }
+        get voteList() {
+            if (this.isExecutive) {
+                return [
+                    {
+                        optionText: 'In Favour',
+                        optionValue: 'Y',
+                    },
+                    {
+                        optionText: 'Against',
+                        optionValue: 'N',
+                    },
+                ];
+            }
+            else {
+                return this.voteOptions
+                    ? Object.keys(this.voteOptions).map((v, i) => {
+                        return {
+                            optionText: v,
+                            optionValue: i,
+                            optionWeight: this.voteOptions[v],
+                        };
+                    })
+                    : [];
+            }
+        }
+        get isAddVoteBallotDisabled() {
+            if ((0, components_6.moment)(this.expiry).isAfter((0, components_6.moment)()))
+                return Number(this.stakeOf) > 0 ? false : true;
+            return true;
+        }
+        constructor(parent, options) {
+            super(parent, options);
             this._data = {
                 chainId: 0,
                 votingAddress: '',
@@ -1040,72 +1106,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     confirmation: confirmationCallback
                 });
             };
-        }
-        get chainId() {
-            return this.state.getChainId();
-        }
-        get defaultChainId() {
-            return this._data.defaultChainId;
-        }
-        set defaultChainId(value) {
-            this._data.defaultChainId = value;
-        }
-        get wallets() {
-            var _a;
-            return (_a = this._data.wallets) !== null && _a !== void 0 ? _a : [];
-        }
-        set wallets(value) {
-            this._data.wallets = value;
-        }
-        get networks() {
-            var _a;
-            return (_a = this._data.networks) !== null && _a !== void 0 ? _a : [];
-        }
-        set networks(value) {
-            this._data.networks = value;
-        }
-        get showHeader() {
-            var _a;
-            return (_a = this._data.showHeader) !== null && _a !== void 0 ? _a : true;
-        }
-        set showHeader(value) {
-            this._data.showHeader = value;
-        }
-        get votingAddress() {
-            return this._data.votingAddress || this.latestVotingAddress || "";
-        }
-        get isExecutive() {
-            return this.proposalType === 'Executive';
-        }
-        get voteList() {
-            if (this.isExecutive) {
-                return [
-                    {
-                        optionText: 'In Favour',
-                        optionValue: 'Y',
-                    },
-                    {
-                        optionText: 'Against',
-                        optionValue: 'N',
-                    },
-                ];
-            }
-            else {
-                return this.voteOptions
-                    ? Object.keys(this.voteOptions).map((v, i) => {
-                        return {
-                            optionText: v,
-                            optionValue: i,
-                            optionWeight: this.voteOptions[v],
-                        };
-                    })
-                    : [];
-            }
-        }
-        get isAddVoteBallotDisabled() {
-            if ((0, components_6.moment)(this.expiry).isAfter((0, components_6.moment)()))
-                return Number(this.stakeOf) > 0 ? false : true;
-            return true;
+            this.state = new index_2.State(data_json_1.default);
         }
         removeRpcWalletEvents() {
             const rpcWallet = this.state.getRpcWallet();
@@ -1122,7 +1123,6 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         async init() {
             this.isReadyCallbackQueued = true;
             super.init();
-            this.state = new index_2.State(data_json_1.default);
             this.governanceVoteList.state = this.state;
             const lazyLoad = this.getAttribute('lazyLoad', true, false);
             if (!lazyLoad) {
@@ -1440,7 +1440,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     this.showResultMessage('warning', `Executing proposal ${votingAddress}`);
                     this.registerSendTxEvents();
                     const receipt = await (0, api_2.execute)(votingAddress);
-                    if (this.state.flowInvokerId && receipt) {
+                    if (this.state.handleAddTransactions && receipt) {
                         const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                         const transactionsInfoArr = [
                             {
@@ -1454,8 +1454,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                                 timestamp
                             }
                         ];
-                        const eventName = `${this.state.flowInvokerId}:addTransactions`;
-                        components_6.application.EventBus.dispatch(eventName, {
+                        this.state.handleAddTransactions({
                             list: transactionsInfoArr
                         });
                     }
@@ -1485,7 +1484,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 const votingAddress = this.votingAddress;
                 const chainId = this.chainId;
                 const receipt = await (0, api_2.vote)(votingAddress, this.selectedVoteObj.optionValue.toString());
-                if (this.state.flowInvokerId && receipt) {
+                if (this.state.handleAddTransactions && receipt) {
                     const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                     const transactionsInfoArr = [
                         {
@@ -1499,8 +1498,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                             timestamp
                         }
                     ];
-                    const eventName = `${this.state.flowInvokerId}:addTransactions`;
-                    components_6.application.EventBus.dispatch(eventName, {
+                    this.state.handleAddTransactions({
                         list: transactionsInfoArr
                     });
                 }
@@ -1632,13 +1630,14 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 widget = new initialSetup_1.default();
                 target.appendChild(widget);
                 await widget.ready();
+                widget.state = this.state;
                 let properties = options.properties;
                 let tokenRequirements = options.tokenRequirements;
-                let invokerId = options.invokerId;
+                this.state.handleNextFlowStep = options.onNextStep;
+                this.state.handleAddTransactions = options.onAddTransactions;
                 await widget.setData({
                     executionProperties: properties,
-                    tokenRequirements,
-                    invokerId
+                    tokenRequirements
                 });
             }
             else {
@@ -1647,8 +1646,8 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 await widget.ready();
                 let properties = options.properties;
                 let tag = options.tag;
-                let invokerId = options.invokerId;
-                this.state.setFlowInvokerId(invokerId);
+                this.state.handleNextFlowStep = options.onNextStep;
+                this.state.handleAddTransactions = options.onAddTransactions;
                 await this.setData(properties);
                 if (tag) {
                     this.setTag(tag);

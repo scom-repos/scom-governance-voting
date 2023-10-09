@@ -1,10 +1,8 @@
 import {
     application,
     Button,
-    Container,
     ControlElement,
     customElements,
-    IEventBus,
     Input,
     Label,
     Module,
@@ -35,17 +33,16 @@ export default class ScomGovernanceVotingFlowInitialSetup extends Module {
     private btnConnectWallet: Button;
     private edtVotingAddress: Input;
     private mdWallet: ScomWalletModal;
-    private state: State;
+    private _state: State;
     private tokenRequirements: any;
     private executionProperties: any;
-    private invokerId: string;
-    private $eventBus: IEventBus;
     private walletEvents: IEventBusRegistry[] = [];
 
-    constructor(parent?: Container, options?: ControlElement) {
-        super(parent, options);
-        this.state = new State({});
-        this.$eventBus = application.EventBus;
+    get state(): State {
+        return this._state;
+    }
+    set state(value: State) {
+        this._state = value;
     }
     private get rpcWallet() {
         return this.state.getRpcWallet();
@@ -59,7 +56,6 @@ export default class ScomGovernanceVotingFlowInitialSetup extends Module {
     async setData(value: any) {
         this.executionProperties = value.executionProperties;
         this.tokenRequirements = value.tokenRequirements;
-        this.invokerId = value.invokerId;
         await this.resetRpcWallet();
         await this.initializeWidgetConfig();
     }
@@ -117,19 +113,19 @@ export default class ScomGovernanceVotingFlowInitialSetup extends Module {
         this.registerEvents();
     }
     private async handleClickStart() {
-        let eventName = `${this.invokerId}:nextStep`;
         this.executionProperties.votingAddress = this.edtVotingAddress.value || "";
-        this.$eventBus.dispatch(eventName, {
-            isInitialSetup: true,
-            tokenRequirements: this.tokenRequirements,
-            executionProperties: this.executionProperties
-        });
+        if (this.state.handleNextFlowStep)
+            this.state.handleNextFlowStep({
+                isInitialSetup: true,
+                tokenRequirements: this.tokenRequirements,
+                executionProperties: this.executionProperties
+            });
     }
     render() {
         return (
             <i-vstack gap="1rem" padding={{ top: 10, bottom: 10, left: 20, right: 20 }}>
                 <i-label caption="Get Ready to Vote"></i-label>
-                
+
                 <i-vstack gap='1rem'>
                     <i-label id="lblConnectedStatus"></i-label>
                     <i-hstack>

@@ -1,6 +1,7 @@
 import {
     application,
     Button,
+    Container,
     Control,
     ControlElement,
     customElements,
@@ -198,6 +199,11 @@ export default class GovernanceVoting extends Module {
         return true;
     }
 
+    constructor(parent?: Container, options?: any) {
+        super(parent, options);
+        this.state = new State(configData);
+    }
+
     removeRpcWalletEvents() {
         const rpcWallet = this.state.getRpcWallet();
         if (rpcWallet) rpcWallet.unregisterAllWalletEvents();
@@ -215,7 +221,6 @@ export default class GovernanceVoting extends Module {
     async init() {
         this.isReadyCallbackQueued = true;
         super.init();
-        this.state = new State(configData);
         this.governanceVoteList.state = this.state;
         const lazyLoad = this.getAttribute('lazyLoad', true, false);
         if (!lazyLoad) {
@@ -625,7 +630,7 @@ export default class GovernanceVoting extends Module {
                 this.showResultMessage('warning', `Executing proposal ${votingAddress}`);
                 this.registerSendTxEvents();
                 const receipt = await execute(votingAddress);
-                if (this.state.flowInvokerId && receipt) {
+                if (this.state.handleAddTransactions && receipt) {
                     const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                     const transactionsInfoArr = [
                         {
@@ -639,8 +644,7 @@ export default class GovernanceVoting extends Module {
                             timestamp
                         }
                     ];
-                    const eventName = `${this.state.flowInvokerId}:addTransactions`;
-                    application.EventBus.dispatch(eventName, {
+                    this.state.handleAddTransactions({
                         list: transactionsInfoArr
                     });
                 }
@@ -670,7 +674,7 @@ export default class GovernanceVoting extends Module {
             const chainId = this.chainId;
             const receipt = await vote(votingAddress, this.selectedVoteObj.optionValue.toString());
 
-            if (this.state.flowInvokerId && receipt) {
+            if (this.state.handleAddTransactions && receipt) {
                 const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                 const transactionsInfoArr = [
                     {
@@ -684,8 +688,7 @@ export default class GovernanceVoting extends Module {
                         timestamp
                     }
                 ];
-                const eventName = `${this.state.flowInvokerId}:addTransactions`;
-                application.EventBus.dispatch(eventName, {
+                this.state.handleAddTransactions({
                     list: transactionsInfoArr
                 });
             }
@@ -1023,13 +1026,14 @@ export default class GovernanceVoting extends Module {
             widget = new ScomGovernanceVotingFlowInitialSetup();
             target.appendChild(widget);
             await widget.ready();
+            widget.state = this.state;
             let properties = options.properties;
             let tokenRequirements = options.tokenRequirements;
-            let invokerId = options.invokerId;
+            this.state.handleNextFlowStep = options.onNextStep;
+            this.state.handleAddTransactions = options.onAddTransactions;
             await widget.setData({
                 executionProperties: properties,
-                tokenRequirements,
-                invokerId
+                tokenRequirements
             });
         } else {
             widget = this;
@@ -1037,8 +1041,8 @@ export default class GovernanceVoting extends Module {
             await widget.ready();
             let properties = options.properties;
             let tag = options.tag;
-            let invokerId = options.invokerId;
-            this.state.setFlowInvokerId(invokerId);
+            this.state.handleNextFlowStep = options.onNextStep;
+            this.state.handleAddTransactions = options.onAddTransactions;
             await this.setData(properties);
             if (tag) {
                 this.setTag(tag);
