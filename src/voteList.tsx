@@ -86,6 +86,7 @@ export class GovernanceVoteList extends Module {
     }
   
     private get remainingTimeToBeExpired()  {
+      if (!this.data.expiry) return 0;
       return moment(this.data.expiry).diff(Date());
     }
   

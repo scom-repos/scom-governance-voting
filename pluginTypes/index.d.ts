@@ -157,7 +157,6 @@ declare module "@scom/scom-governance-voting/index.css.ts" {
 /// <amd-module name="@scom/scom-governance-voting/api.ts" />
 declare module "@scom/scom-governance-voting/api.ts" {
     import { BigNumber } from "@ijstech/eth-wallet";
-    import { IVotingResult } from "@scom/scom-governance-voting/interface.ts";
     import { State } from "@scom/scom-governance-voting/store/index.ts";
     export function stakeOf(state: State, address: string): Promise<BigNumber>;
     export function freezedStake(state: State, address: string): Promise<{
@@ -166,7 +165,7 @@ declare module "@scom/scom-governance-voting/api.ts" {
         lockTill: number;
     }>;
     export function getLatestVotingAddress(state: State, chainId: number): Promise<string>;
-    export function getVotingResult(state: State, votingAddress: string): Promise<IVotingResult>;
+    export function getVotingResult(state: State, votingAddress: string): Promise<any>;
     export function getOptionVoted(state: State, votingAddress: string, address: string): Promise<any>;
     export function execute(votingAddress: string): Promise<import("@ijstech/eth-contract").TransactionReceipt>;
     export function vote(votingAddress: string, value: string): Promise<import("@ijstech/eth-contract").TransactionReceipt>;

@@ -262,11 +262,14 @@ export async function getLatestVotingAddress(state: State, chainId: number) {
 
 export async function getVotingResult(state: State, votingAddress: string) {
     if (!votingAddress) return;
-    const wallet = state.getRpcWallet();
-    const votingContract = new Contracts.OAXDEX_VotingContract(wallet, votingAddress);
-    const getParams = await votingContract.getParams();
-    let result = parseVotingParams(state, getParams);
-    result.address = votingAddress;
+    let result;
+    try {
+        const wallet = state.getRpcWallet();
+        const votingContract = new Contracts.OAXDEX_VotingContract(wallet, votingAddress);
+        const getParams = await votingContract.getParams();
+        result = parseVotingParams(state, getParams);
+        result.address = votingAddress;
+    } catch (err) {}
     return result;
 }
 

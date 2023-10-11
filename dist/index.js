@@ -562,11 +562,15 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
     async function getVotingResult(state, votingAddress) {
         if (!votingAddress)
             return;
-        const wallet = state.getRpcWallet();
-        const votingContract = new oswap_openswap_contract_1.Contracts.OAXDEX_VotingContract(wallet, votingAddress);
-        const getParams = await votingContract.getParams();
-        let result = parseVotingParams(state, getParams);
-        result.address = votingAddress;
+        let result;
+        try {
+            const wallet = state.getRpcWallet();
+            const votingContract = new oswap_openswap_contract_1.Contracts.OAXDEX_VotingContract(wallet, votingAddress);
+            const getParams = await votingContract.getParams();
+            result = parseVotingParams(state, getParams);
+            result.address = votingAddress;
+        }
+        catch (err) { }
         return result;
     }
     exports.getVotingResult = getVotingResult;
@@ -651,6 +655,8 @@ define("@scom/scom-governance-voting/voteList.tsx", ["require", "exports", "@ijs
                 return true;
         }
         get remainingTimeToBeExpired() {
+            if (!this.data.expiry)
+                return 0;
             return (0, components_4.moment)(this.data.expiry).diff(Date());
         }
         get optionValue() {
@@ -1000,6 +1006,8 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             }
         }
         get isAddVoteBallotDisabled() {
+            if (!this.expiry)
+                return true;
             if ((0, components_6.moment)(this.expiry).isAfter((0, components_6.moment)()))
                 return Number(this.stakeOf) > 0 ? false : true;
             return true;
@@ -1351,10 +1359,6 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.lblVotingBalance.caption = `${this.votingBalance} ${govTokenSymbol}`;
         }
         async getVotingResult() {
-            const wallet = this.state.getRpcWallet();
-            if (this._data.votingAddress && this._data.chainId && wallet.chainId != this._data.chainId) {
-                await wallet.switchNetwork(this._data.chainId);
-            }
             const votingResult = await (0, api_2.getVotingResult)(this.state, this.votingAddress);
             if (votingResult) {
                 this.proposalType = votingResult.hasOwnProperty('executeParam') ? 'Executive' : 'Poll';
@@ -1392,8 +1396,24 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     // Render Chart
                 }
             }
+            else {
+                this.proposalType = 'Executive';
+                this.isCanExecute = false;
+                this.expiry = null;
+                this.voteStartTime = null;
+                this.lblTitle.caption = this.lblProposalDesc.caption = "";
+                this.voteOptions = {};
+                this.executeAction = '';
+                this.executeValue = '0';
+                this.tokenAddress = '';
+                this.executeDelaySeconds = 0;
+                this.executeDelayDatetime = null;
+                this.votingQuorum = '0';
+            }
         }
         formatDate(value) {
+            if (!value)
+                return '';
             return (0, components_6.moment)(value).format('MMM. DD, YYYY') + ' at ' + (0, components_6.moment)(value).format('HH:mm');
         }
         updateMainUI() {

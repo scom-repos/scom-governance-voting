@@ -194,6 +194,7 @@ export default class GovernanceVoting extends Module {
     }
 
     private get isAddVoteBallotDisabled() {
+        if (!this.expiry) return true;
         if (moment(this.expiry).isAfter(moment()))
             return Number(this.stakeOf) > 0 ? false : true;
         return true;
@@ -522,10 +523,6 @@ export default class GovernanceVoting extends Module {
     }
 
     private async getVotingResult() {
-        const wallet = this.state.getRpcWallet();
-        if (this._data.votingAddress && this._data.chainId && wallet.chainId != this._data.chainId) {
-            await wallet.switchNetwork(this._data.chainId);
-        }
         const votingResult = await getVotingResult(this.state, this.votingAddress);
         if (votingResult) {
             this.proposalType = votingResult.hasOwnProperty('executeParam') ? 'Executive' : 'Poll';
@@ -558,10 +555,24 @@ export default class GovernanceVoting extends Module {
             } else {
                 // Render Chart
             }
+        } else {
+            this.proposalType = 'Executive';
+            this.isCanExecute = false;
+            this.expiry = null;
+            this.voteStartTime = null;
+            this.lblTitle.caption = this.lblProposalDesc.caption = "";
+            this.voteOptions = {};
+            this.executeAction = '';
+            this.executeValue = '0';
+            this.tokenAddress = '';
+            this.executeDelaySeconds = 0;
+            this.executeDelayDatetime = null;
+            this.votingQuorum = '0';
         }
     }
 
     private formatDate(value: Date) {
+        if (!value) return '';
         return moment(value).format('MMM. DD, YYYY') + ' at ' + moment(value).format('HH:mm')
     }
 
