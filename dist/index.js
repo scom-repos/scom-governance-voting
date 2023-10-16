@@ -1496,14 +1496,15 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                         const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                         const transactionsInfoArr = [
                             {
-                                desc: `Execute proposal ${votingAddress}`,
+                                desc: 'Execute proposal',
                                 chainId: chainId,
                                 fromToken: null,
                                 toToken: null,
                                 fromTokenAmount: '',
                                 toTokenAmount: '-',
                                 hash: receipt.transactionHash,
-                                timestamp
+                                timestamp,
+                                value: votingAddress
                             }
                         ];
                         this.state.handleAddTransactions({
@@ -1550,14 +1551,15 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                     const transactionsInfoArr = [
                         {
-                            desc: `Vote on proposal ${votingAddress}: ${voteOption}`,
+                            desc: `Vote on proposal ${votingAddress}`,
                             chainId: chainId,
                             fromToken: null,
                             toToken: null,
                             fromTokenAmount: '',
                             toTokenAmount: '-',
                             hash: receipt.transactionHash,
-                            timestamp
+                            timestamp,
+                            value: voteOption,
                         }
                     ];
                     this.state.handleAddTransactions({
