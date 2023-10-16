@@ -1510,6 +1510,16 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                             list: transactionsInfoArr
                         });
                     }
+                    if (this.state.handleJumpToStep) {
+                        this.state.handleJumpToStep({
+                            widgetName: 'scom-group-queue-pair',
+                            executionProperties: {
+                                fromToken: this._data.fromToken || '',
+                                toToken: this._data.toToken || '',
+                                isFlow: true
+                            }
+                        });
+                    }
                     this.btnExecute.rightIcon.spin = false;
                     this.btnExecute.rightIcon.visible = false;
                 }
@@ -1687,6 +1697,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 let tokenRequirements = options.tokenRequirements;
                 this.state.handleNextFlowStep = options.onNextStep;
                 this.state.handleAddTransactions = options.onAddTransactions;
+                this.state.handleJumpToStep = options.onJumpToStep;
                 await widget.setData({
                     executionProperties: properties,
                     tokenRequirements
@@ -1700,6 +1711,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 let tag = options.tag;
                 this.state.handleNextFlowStep = options.onNextStep;
                 this.state.handleAddTransactions = options.onAddTransactions;
+                this.state.handleJumpToStep = options.onJumpToStep;
                 await this.setData(properties);
                 if (tag) {
                     this.setTag(tag);

@@ -4,13 +4,19 @@ import { IWalletPlugin } from "@scom/scom-wallet-modal";
 
 export type ProposalType = 'Executive' | 'Poll';
 
-export interface IGovernanceVoting {
+export interface IGovernanceVoting extends IGovernanceVotingFlow {
     chainId: number;
     votingAddress: string;
     wallets: IWalletPlugin[];
     networks: INetworkConfig[];
     defaultChainId?: number;
     showHeader?: boolean;
+}
+
+interface IGovernanceVotingFlow {
+    isFlow?: boolean;                                                                
+    fromToken?: string;
+    toToken?: string;
 }
 
 export interface IExecuteParam {

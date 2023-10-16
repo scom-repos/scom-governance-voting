@@ -7,13 +7,18 @@ declare module "@scom/scom-governance-voting/interface.ts" {
     import { INetworkConfig } from "@scom/scom-network-picker";
     import { IWalletPlugin } from "@scom/scom-wallet-modal";
     export type ProposalType = 'Executive' | 'Poll';
-    export interface IGovernanceVoting {
+    export interface IGovernanceVoting extends IGovernanceVotingFlow {
         chainId: number;
         votingAddress: string;
         wallets: IWalletPlugin[];
         networks: INetworkConfig[];
         defaultChainId?: number;
         showHeader?: boolean;
+    }
+    interface IGovernanceVotingFlow {
+        isFlow?: boolean;
+        fromToken?: string;
+        toToken?: string;
     }
     export interface IExecuteParam {
         cmd: string;
@@ -95,6 +100,7 @@ declare module "@scom/scom-governance-voting/store/utils.ts" {
         approvalModel: ERC20ApprovalModel;
         handleNextFlowStep: (data: any) => Promise<void>;
         handleAddTransactions: (data: any) => Promise<void>;
+        handleJumpToStep: (data: any) => Promise<void>;
         constructor(options: any);
         private initData;
         initRpcWallet(defaultChainId: number): string;
@@ -415,6 +421,9 @@ declare module "@scom/scom-governance-voting" {
                 networks: INetworkConfig[];
                 defaultChainId?: number;
                 showHeader?: boolean;
+                isFlow?: boolean;
+                fromToken?: string;
+                toToken?: string;
             }>;
             setData: (properties: IGovernanceVoting, linkParams?: Record<string, any>) => Promise<void>;
             getTag: any;
