@@ -1370,8 +1370,8 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.stakeOf = await (0, api_2.stakeOf)(this.state, selectedAddress);
             let freezeStake = await (0, api_2.freezedStake)(this.state, selectedAddress);
             let freezeStakeAmount = freezeStake.amount;
-            this.stakedBalance = components_6.FormatUtils.formatNumber(freezeStakeAmount.plus(this.stakeOf).toString(), { decimalFigures: 4 });
-            this.votingBalance = components_6.FormatUtils.formatNumber(this.stakeOf.toString(), { decimalFigures: 4 });
+            this.stakedBalance = components_6.FormatUtils.formatNumber(freezeStakeAmount.plus(this.stakeOf).toFixed(4), { decimalFigures: 4 });
+            this.votingBalance = components_6.FormatUtils.formatNumber(this.stakeOf.toFixed(4), { decimalFigures: 4 });
             this.freezeStakeAmount = freezeStakeAmount;
             this.lockTill = freezeStake.lockTill;
         }
@@ -1383,7 +1383,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.lblStakedBalance.caption = `${this.stakedBalance} ${govTokenSymbol}`;
             this.lblFreezeStakeAmount.visible = canDisplay;
             if (canDisplay) {
-                this.lblFreezeStakeAmount.caption = `${components_6.FormatUtils.formatNumber(this.freezeStakeAmount.toString(), { decimalFigures: 4 })} ${govTokenSymbol} Available on ${(0, components_6.moment)(this.lockTill).format('MMM DD, YYYY')}`;
+                this.lblFreezeStakeAmount.caption = `${components_6.FormatUtils.formatNumber(this.freezeStakeAmount.toFixed(4), { decimalFigures: 4 })} ${govTokenSymbol} Available on ${(0, components_6.moment)(this.lockTill).format('MMM DD, YYYY')}`;
             }
             else {
                 this.lblFreezeStakeAmount.caption = '';
@@ -1607,8 +1607,8 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                                 this.$render("i-hstack", { padding: { bottom: "1rem" }, verticalAlignment: "center", gap: 4, wrap: "wrap" },
                                     this.$render("i-label", { caption: "Address: ", font: { size: '1rem', color: Theme.text.third, bold: true } }),
                                     this.$render("i-label", { id: "lblVotingAddress", font: { size: '1rem', color: Theme.text.third } }),
-                                    this.$render("i-button", { class: "btn-os", height: 28, width: 28, icon: { name: 'edit', height: 14, width: 14 }, margin: { left: 4 }, onClick: this.openModal.bind(this) }),
-                                    this.$render("i-button", { class: "btn-os", height: 28, width: 28, icon: { name: 'sync', height: 14, width: 14 }, margin: { left: 4 }, onClick: this.refreshUI.bind(this) })),
+                                    this.$render("i-button", { class: "btn-os", height: 28, width: 28, icon: { name: 'edit', height: 14, width: 14 }, margin: { left: 4 }, tooltip: { content: 'Edit', placement: 'top' }, onClick: this.openModal.bind(this) }),
+                                    this.$render("i-button", { class: "btn-os", height: 28, width: 28, icon: { name: 'sync', height: 14, width: 14 }, margin: { left: 4 }, tooltip: { content: 'Refresh', placement: 'top' }, onClick: this.refreshUI.bind(this) })),
                                 this.$render("i-stack", { direction: "horizontal", alignItems: "start", justifyContent: "space-between", mediaQueries: [{
                                             maxWidth: '767px', properties: {
                                                 direction: 'vertical', alignItems: 'start', justifyContent: 'start', gap: '1rem'

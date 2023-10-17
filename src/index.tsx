@@ -502,8 +502,8 @@ export default class GovernanceVoting extends Module {
         this.stakeOf = await stakeOf(this.state, selectedAddress);
         let freezeStake = await freezedStake(this.state, selectedAddress);
         let freezeStakeAmount = freezeStake.amount;
-        this.stakedBalance = FormatUtils.formatNumber(freezeStakeAmount.plus(this.stakeOf).toString(), { decimalFigures: 4 });
-        this.votingBalance = FormatUtils.formatNumber(this.stakeOf.toString(), { decimalFigures: 4 });
+        this.stakedBalance = FormatUtils.formatNumber(freezeStakeAmount.plus(this.stakeOf).toFixed(4), { decimalFigures: 4 });
+        this.votingBalance = FormatUtils.formatNumber(this.stakeOf.toFixed(4), { decimalFigures: 4 });
         this.freezeStakeAmount = freezeStakeAmount;
         this.lockTill = freezeStake.lockTill;
     }
@@ -515,7 +515,7 @@ export default class GovernanceVoting extends Module {
         this.lblStakedBalance.caption = `${this.stakedBalance} ${govTokenSymbol}`;
         this.lblFreezeStakeAmount.visible = canDisplay;
         if (canDisplay) {
-            this.lblFreezeStakeAmount.caption = `${FormatUtils.formatNumber(this.freezeStakeAmount.toString(), { decimalFigures: 4 })} ${govTokenSymbol} Available on ${moment(this.lockTill).format('MMM DD, YYYY')}`;
+            this.lblFreezeStakeAmount.caption = `${FormatUtils.formatNumber(this.freezeStakeAmount.toFixed(4), { decimalFigures: 4 })} ${govTokenSymbol} Available on ${moment(this.lockTill).format('MMM DD, YYYY')}`;
         } else {
             this.lblFreezeStakeAmount.caption = '';
         }
@@ -778,6 +778,7 @@ export default class GovernanceVoting extends Module {
                                         width={28}
                                         icon={{ name: 'edit', height: 14, width: 14 }}
                                         margin={{ left: 4 }}
+                                        tooltip={{ content: 'Edit', placement: 'top' }}
                                         onClick={this.openModal.bind(this)}
                                     ></i-button>
                                     <i-button
@@ -786,6 +787,7 @@ export default class GovernanceVoting extends Module {
                                         width={28}
                                         icon={{ name: 'sync', height: 14, width: 14 }}
                                         margin={{ left: 4 }}
+                                        tooltip={{ content: 'Refresh', placement: 'top' }}
                                         onClick={this.refreshUI.bind(this)}
                                     ></i-button>
                                 </i-hstack>
