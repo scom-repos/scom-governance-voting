@@ -1,6 +1,7 @@
 import {
     application,
     Button,
+    Control,
     ControlElement,
     customElements,
     Input,
@@ -161,5 +162,20 @@ export default class ScomGovernanceVotingFlowInitialSetup extends Module {
                 <i-scom-wallet-modal id="mdWallet" wallets={[]}></i-scom-wallet-modal>
             </i-vstack>
         )
+    }
+    async handleFlowStage(target: Control, stage: string, options: any) {
+        let widget: ScomGovernanceVotingFlowInitialSetup = this;
+        if (!options.isWidgetConnected) {
+            let properties = options.properties;
+            let tokenRequirements = options.tokenRequirements;
+            this.state.handleNextFlowStep = options.onNextStep;
+            this.state.handleAddTransactions = options.onAddTransactions;
+            this.state.handleJumpToStep = options.onJumpToStep;
+            await this.setData({ 
+                executionProperties: properties, 
+                tokenRequirements
+            });
+        }
+        return { widget }
     }
 }
