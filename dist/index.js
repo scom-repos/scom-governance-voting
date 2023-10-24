@@ -1533,6 +1533,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             }
         }
         async handleExecute() {
+            const wallet = eth_wallet_5.Wallet.getClientInstance();
             try {
                 if (this.isCanExecute) {
                     this.btnExecute.rightIcon.spin = true;
@@ -1563,6 +1564,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                         if (this.state.handleUpdateStepStatus) {
                             await this.getVotingResult(true);
                         }
+                        wallet.registerSendTxEvents({});
                         if (this.state.handleJumpToStep) {
                             this.updateMainUI();
                             this.state.handleJumpToStep({
@@ -1585,6 +1587,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 this.showResultMessage('error', err);
                 this.btnExecute.rightIcon.spin = false;
                 this.btnExecute.rightIcon.visible = false;
+                wallet.registerSendTxEvents({});
             }
         }
         async onSubmitVote() {
@@ -1594,6 +1597,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             }
             if (this.isAddVoteBallotDisabled || !this.isVoteSelected)
                 return;
+            const wallet = eth_wallet_5.Wallet.getClientInstance();
             try {
                 this.btnSubmitVote.rightIcon.spin = true;
                 this.btnSubmitVote.rightIcon.visible = true;
@@ -1622,6 +1626,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                         });
                     }
                     this.refreshUI(true);
+                    wallet.registerSendTxEvents({});
                 };
                 this.registerSendTxEvents(confirmationCallback);
                 await (0, api_2.vote)(votingAddress, this.selectedVoteObj.optionValue.toString());
@@ -1632,6 +1637,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 this.showResultMessage('error', err);
                 this.btnSubmitVote.rightIcon.spin = false;
                 this.btnSubmitVote.rightIcon.visible = false;
+                wallet.registerSendTxEvents({});
             }
         }
         updateAddress() {

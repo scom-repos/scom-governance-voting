@@ -662,6 +662,7 @@ export default class GovernanceVoting extends Module {
     }
 
     private async handleExecute() {
+        const wallet = Wallet.getClientInstance();
         try {
             if (this.isCanExecute) {
                 this.btnExecute.rightIcon.spin = true;
@@ -693,6 +694,7 @@ export default class GovernanceVoting extends Module {
                     if (this.state.handleUpdateStepStatus) {
                         await this.getVotingResult(true);
                     }
+                    wallet.registerSendTxEvents({});
                     if (this.state.handleJumpToStep) {
                         this.updateMainUI();
                         this.state.handleJumpToStep({
@@ -715,6 +717,7 @@ export default class GovernanceVoting extends Module {
             this.showResultMessage('error', err);
             this.btnExecute.rightIcon.spin = false;
             this.btnExecute.rightIcon.visible = false;
+            wallet.registerSendTxEvents({});
         }
     }
 
@@ -724,6 +727,7 @@ export default class GovernanceVoting extends Module {
             return;
         }
         if (this.isAddVoteBallotDisabled || !this.isVoteSelected) return;
+        const wallet = Wallet.getClientInstance();
         try {
             this.btnSubmitVote.rightIcon.spin = true;
             this.btnSubmitVote.rightIcon.visible = true;
@@ -752,6 +756,7 @@ export default class GovernanceVoting extends Module {
                     });
                 }
                 this.refreshUI(true);
+                wallet.registerSendTxEvents({});
             };
             this.registerSendTxEvents(confirmationCallback);
             await vote(votingAddress, this.selectedVoteObj.optionValue.toString());
@@ -762,6 +767,7 @@ export default class GovernanceVoting extends Module {
             this.showResultMessage('error', err);
             this.btnSubmitVote.rightIcon.spin = false;
             this.btnSubmitVote.rightIcon.visible = false;
+            wallet.registerSendTxEvents({});
         }
     }
 
