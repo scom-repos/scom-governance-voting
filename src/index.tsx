@@ -430,8 +430,8 @@ export default class GovernanceVoting extends Module {
         if (this.dappContainer?.setData) this.dappContainer.setData(data);
     }
 
-    private async refreshUI() {
-        await this.initializeWidgetConfig();
+    private async refreshUI(isUpdateStepStatus?: boolean) {
+        await this.initializeWidgetConfig(isUpdateStepStatus);
     }
 
     private initWallet = async () => {
@@ -444,7 +444,7 @@ export default class GovernanceVoting extends Module {
         }
     }
 
-    private initializeWidgetConfig = async () => {
+    private initializeWidgetConfig = async (isUpdateStepStatus?: boolean) => {
         setTimeout(async () => {
             const chainId = this.chainId;
             tokenStore.updateTokenMapData(chainId);
@@ -455,7 +455,7 @@ export default class GovernanceVoting extends Module {
             }
             this.lblVotingAddress.caption = this.votingAddress;
             this.updateBalanceStack();
-            await this.getVotingResult();
+            await this.getVotingResult(isUpdateStepStatus);
             const connected = isClientWalletConnected();
             if (!connected || !this.state.isRpcWalletConnected()) {
                 this.btnSubmitVote.caption = connected ? "Switch Network" : "Connect Wallet";
@@ -522,7 +522,36 @@ export default class GovernanceVoting extends Module {
         this.lblVotingBalance.caption = `${this.votingBalance} ${govTokenSymbol}`;
     }
 
-    private async getVotingResult() {
+    private getStepStatusTextAndColor(votingResultStatus: string) {
+        let status = "";
+        let color;
+        switch (votingResultStatus) {
+            case "vetoed":
+                status = "Vetoed";
+                color = Theme.colors.error.main;
+                break;
+            case "in_progress":
+                status = "Waiting to vote";
+                color = Theme.colors.warning.main;
+                break;
+            case "not_passed":
+                status = "Not Passed";
+                color = Theme.colors.error.main;
+                break;
+            case "waiting_execution_delay":
+            case "waiting_execution":
+                status = "Pending for execution";
+                color = Theme.colors.warning.main;
+                break;
+            case "executed":
+                status = "Completed";
+                color = Theme.colors.success.main;
+                break;
+        }
+        return { status, color };
+    }
+
+    private async getVotingResult(isUpdateStepStatus?: boolean) {
         const votingResult = await getVotingResult(this.state, this.votingAddress);
         if (votingResult) {
             this.proposalType = votingResult.hasOwnProperty('executeParam') ? 'Executive' : 'Poll';
@@ -552,8 +581,13 @@ export default class GovernanceVoting extends Module {
                     .add(this.executeDelaySeconds, 'seconds')
                     .toDate();
                 this.votingQuorum = votingResult.quorum;
-            } else {
-                // Render Chart
+            }
+            if (isUpdateStepStatus && this.state.handleUpdateStepStatus) {
+                const { status, color } = this.getStepStatusTextAndColor(votingResult?.status);
+                this.state.handleUpdateStepStatus({
+                    caption: status,
+                    color
+                });
             }
         } else {
             this.proposalType = 'Executive';
@@ -611,7 +645,7 @@ export default class GovernanceVoting extends Module {
         }
     }
 
-    private registerSendTxEvents = () => {
+    private registerSendTxEvents = (confirmationCallback: any) => {
         const txHashCallback = async (err: Error, receipt?: string) => {
             if (err) {
                 this.showResultMessage('error', err);
@@ -619,10 +653,6 @@ export default class GovernanceVoting extends Module {
                 this.showResultMessage('success', receipt);
             }
         }
-
-        const confirmationCallback = async (receipt: any) => {
-            this.refreshUI();
-        };
 
         const wallet = Wallet.getClientInstance();
         wallet.registerSendTxEvents({
@@ -639,37 +669,45 @@ export default class GovernanceVoting extends Module {
                 const votingAddress = this.votingAddress;
                 const chainId = this.chainId;
                 this.showResultMessage('warning', `Executing proposal ${votingAddress}`);
-                this.registerSendTxEvents();
-                const receipt = await execute(votingAddress);
-                if (this.state.handleAddTransactions && receipt) {
-                    const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
-                    const transactionsInfoArr = [
-                        {
-                            desc: 'Execute proposal',
-                            chainId: chainId,
-                            fromToken: null,
-                            toToken: null,
-                            fromTokenAmount: '',
-                            toTokenAmount: '-',
-                            hash: receipt.transactionHash,
-                            timestamp,
-                            value: votingAddress
-                        }
-                    ];
-                    this.state.handleAddTransactions({
-                        list: transactionsInfoArr
-                    });
-                }
-                if (this.state.handleJumpToStep) {
-                    this.state.handleJumpToStep({
-                        widgetName: 'scom-group-queue-pair',
-                        executionProperties: {
-                            fromToken: this._data.fromToken || '',
-                            toToken: this._data.toToken || '',
-                            isFlow: true
-                        }
-                    })
-                }
+
+                const confirmationCallback = async (receipt: any) => {
+                    if (this.state.handleAddTransactions && receipt) {
+                        const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
+                        const transactionsInfoArr = [
+                            {
+                                desc: 'Execute proposal',
+                                chainId: chainId,
+                                fromToken: null,
+                                toToken: null,
+                                fromTokenAmount: '',
+                                toTokenAmount: '-',
+                                hash: receipt.transactionHash,
+                                timestamp,
+                                value: votingAddress
+                            }
+                        ];
+                        this.state.handleAddTransactions({
+                            list: transactionsInfoArr
+                        });
+                    }
+                    if (this.state.handleUpdateStepStatus) {
+                        await this.getVotingResult(true);
+                    }
+                    if (this.state.handleJumpToStep) {
+                        this.updateMainUI();
+                        this.state.handleJumpToStep({
+                            widgetName: 'scom-group-queue-pair',
+                            executionProperties: {
+                                fromToken: this._data.fromToken || '',
+                                toToken: this._data.toToken || '',
+                                isFlow: true
+                            }
+                        })
+                    }
+                };
+
+                this.registerSendTxEvents(confirmationCallback);
+                await execute(votingAddress);
                 this.btnExecute.rightIcon.spin = false;
                 this.btnExecute.rightIcon.visible = false;
             }
@@ -690,31 +728,34 @@ export default class GovernanceVoting extends Module {
             this.btnSubmitVote.rightIcon.spin = true;
             this.btnSubmitVote.rightIcon.visible = true;
             this.showResultMessage('warning');
-            this.registerSendTxEvents();
             const voteOption = this.selectedVoteObj.optionText;
             const votingAddress = this.votingAddress;
             const chainId = this.chainId;
-            const receipt = await vote(votingAddress, this.selectedVoteObj.optionValue.toString());
+            const confirmationCallback = async (receipt: any) => {
+                if (this.state.handleAddTransactions && receipt) {
+                    const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
+                    const transactionsInfoArr = [
+                        {
+                            desc: `Vote on proposal ${votingAddress}`,
+                            chainId: chainId,
+                            fromToken: null,
+                            toToken: null,
+                            fromTokenAmount: '',
+                            toTokenAmount: '-',
+                            hash: receipt.transactionHash,
+                            timestamp,
+                            value: voteOption,
+                        }
+                    ];
+                    this.state.handleAddTransactions({
+                        list: transactionsInfoArr
+                    });
+                }
+                this.refreshUI(true);
+            };
+            this.registerSendTxEvents(confirmationCallback);
+            await vote(votingAddress, this.selectedVoteObj.optionValue.toString());
 
-            if (this.state.handleAddTransactions && receipt) {
-                const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
-                const transactionsInfoArr = [
-                    {
-                        desc: `Vote on proposal ${votingAddress}`,
-                        chainId: chainId,
-                        fromToken: null,
-                        toToken: null,
-                        fromTokenAmount: '',
-                        toTokenAmount: '-',
-                        hash: receipt.transactionHash,
-                        timestamp,
-                        value: voteOption,
-                    }
-                ];
-                this.state.handleAddTransactions({
-                    list: transactionsInfoArr
-                });
-            }
             this.btnSubmitVote.rightIcon.spin = false;
             this.btnSubmitVote.rightIcon.visible = false;
         } catch (err) {
@@ -1064,6 +1105,7 @@ export default class GovernanceVoting extends Module {
             this.state.handleNextFlowStep = options.onNextStep;
             this.state.handleAddTransactions = options.onAddTransactions;
             this.state.handleJumpToStep = options.onJumpToStep;
+            this.state.handleUpdateStepStatus = options.onUpdateStepStatus;
             await this.setData(properties);
             if (tag) {
                 this.setTag(tag);

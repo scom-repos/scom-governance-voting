@@ -115,6 +115,11 @@ export default class ScomGovernanceVotingFlowInitialSetup extends Module {
     }
     private async handleClickStart() {
         this.executionProperties.votingAddress = this.edtVotingAddress.value || "";
+        if (this.state.handleUpdateStepStatus)
+            this.state.handleUpdateStepStatus({
+                caption: "Completed",
+                color: Theme.colors.success.main
+            });
         if (this.state.handleNextFlowStep)
             this.state.handleNextFlowStep({
                 isInitialSetup: true,
@@ -171,6 +176,7 @@ export default class ScomGovernanceVotingFlowInitialSetup extends Module {
             this.state.handleNextFlowStep = options.onNextStep;
             this.state.handleAddTransactions = options.onAddTransactions;
             this.state.handleJumpToStep = options.onJumpToStep;
+            this.state.handleUpdateStepStatus = options.onUpdateStepStatus;
             await this.setData({ 
                 executionProperties: properties, 
                 tokenRequirements

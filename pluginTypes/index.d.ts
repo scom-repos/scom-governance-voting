@@ -101,6 +101,7 @@ declare module "@scom/scom-governance-voting/store/utils.ts" {
         handleNextFlowStep: (data: any) => Promise<void>;
         handleAddTransactions: (data: any) => Promise<void>;
         handleJumpToStep: (data: any) => Promise<void>;
+        handleUpdateStepStatus: (data: any) => Promise<void>;
         constructor(options: any);
         private initData;
         initRpcWallet(defaultChainId: number): string;
@@ -447,6 +448,7 @@ declare module "@scom/scom-governance-voting" {
         private connectWallet;
         private setGovBalance;
         private updateBalanceStack;
+        private getStepStatusTextAndColor;
         private getVotingResult;
         private formatDate;
         private updateMainUI;

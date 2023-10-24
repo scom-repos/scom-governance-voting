@@ -90,16 +90,17 @@ define("@scom/scom-governance-voting/store/utils.ts", ["require", "exports", "@i
             }
         }
         initRpcWallet(defaultChainId) {
+            var _a, _b, _c;
             if (this.rpcWalletId) {
                 return this.rpcWalletId;
             }
             const clientWallet = eth_wallet_1.Wallet.getClientInstance();
-            const networkList = Object.values(components_1.application.store?.networkMap || []);
+            const networkList = Object.values(((_a = components_1.application.store) === null || _a === void 0 ? void 0 : _a.networkMap) || []);
             const instanceId = clientWallet.initRpcWallet({
                 networks: networkList,
                 defaultChainId,
-                infuraId: components_1.application.store?.infuraId,
-                multicalls: components_1.application.store?.multicalls
+                infuraId: (_b = components_1.application.store) === null || _b === void 0 ? void 0 : _b.infuraId,
+                multicalls: (_c = components_1.application.store) === null || _c === void 0 ? void 0 : _c.multicalls
             });
             this.rpcWalletId = instanceId;
             if (clientWallet.address) {
@@ -113,11 +114,11 @@ define("@scom/scom-governance-voting/store/utils.ts", ["require", "exports", "@i
         }
         isRpcWalletConnected() {
             const wallet = this.getRpcWallet();
-            return wallet?.isConnected;
+            return wallet === null || wallet === void 0 ? void 0 : wallet.isConnected;
         }
         getChainId() {
             const rpcWallet = this.getRpcWallet();
-            return rpcWallet?.chainId;
+            return rpcWallet === null || rpcWallet === void 0 ? void 0 : rpcWallet.chainId;
         }
         setNetworkList(networkList, infuraId) {
             const wallet = eth_wallet_1.Wallet.getClientInstance();
@@ -136,18 +137,12 @@ define("@scom/scom-governance-voting/store/utils.ts", ["require", "exports", "@i
                         network.rpcUrls[i] = network.rpcUrls[i].replace(/{InfuraId}/g, infuraId);
                     }
                 }
-                this.networkMap[network.chainId] = {
-                    ...networkInfo,
-                    ...network
-                };
+                this.networkMap[network.chainId] = Object.assign(Object.assign({}, networkInfo), network);
                 wallet.setNetworkInfo(this.networkMap[network.chainId]);
             }
         }
         async setApprovalModelAction(options) {
-            const approvalOptions = {
-                ...options,
-                spenderAddress: ''
-            };
+            const approvalOptions = Object.assign(Object.assign({}, options), { spenderAddress: '' });
             let wallet = this.getRpcWallet();
             this.approvalModel = new eth_wallet_1.ERC20ApprovalModel(wallet, approvalOptions);
             let approvalModelAction = this.approvalModel.getAction();
@@ -157,8 +152,9 @@ define("@scom/scom-governance-voting/store/utils.ts", ["require", "exports", "@i
             return core_1.coreAddress[chainId || this.getChainId()];
         }
         getGovToken(chainId) {
+            var _a;
             let govToken;
-            let address = this.getAddresses(chainId)?.GOV_TOKEN;
+            let address = (_a = this.getAddresses(chainId)) === null || _a === void 0 ? void 0 : _a.GOV_TOKEN;
             if (chainId == 43113 || chainId == 43114 || chainId == 42161 || chainId == 421613 || chainId == 80001 || chainId == 137) {
                 govToken = { address: address, decimals: 18, symbol: "veOSWAP", name: 'Vote-escrowed OSWAP' };
             }
@@ -477,6 +473,7 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
         return executeParam;
     }
     function getVotingTitle(state, result) {
+        var _a, _b, _c, _d;
         let title;
         if (!result.executeParam)
             return title;
@@ -484,8 +481,8 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
         const token1 = result.executeParam.token1;
         const chainId = state.getChainId();
         let tokenMap = scom_token_list_2.tokenStore.getTokenMapByChainId(chainId);
-        let symbol0 = token0 ? tokenMap[token0.toLowerCase()]?.symbol ?? '' : '';
-        let symbol1 = token1 ? tokenMap[token1.toLowerCase()]?.symbol ?? '' : '';
+        let symbol0 = token0 ? (_b = (_a = tokenMap[token0.toLowerCase()]) === null || _a === void 0 ? void 0 : _a.symbol) !== null && _b !== void 0 ? _b : '' : '';
+        let symbol1 = token1 ? (_d = (_c = tokenMap[token1.toLowerCase()]) === null || _c === void 0 ? void 0 : _c.symbol) !== null && _d !== void 0 ? _d : '' : '';
         switch (result.executeParam.cmd) {
             case "addOldOracleToNewPair":
                 title = "Add Price Oracle for Pair " + symbol0 + "/" + symbol1;
@@ -652,11 +649,12 @@ define("@scom/scom-governance-voting/voteList.tsx", ["require", "exports", "@ijs
             super(...arguments);
             this.userWeightVote = {};
             this.getVoteOptions = async () => {
+                var _a;
                 const address = eth_wallet_3.Wallet.getClientInstance().account.address;
                 const getOptionVote = await (0, api_1.getOptionVoted)(this.state, this.data.address, address);
                 this.userWeightVote = {
-                    option: getOptionVote?.option,
-                    weight: eth_wallet_3.Utils.fromDecimals(getOptionVote?.weight ?? "").toFixed()
+                    option: getOptionVote === null || getOptionVote === void 0 ? void 0 : getOptionVote.option,
+                    weight: eth_wallet_3.Utils.fromDecimals((_a = getOptionVote === null || getOptionVote === void 0 ? void 0 : getOptionVote.weight) !== null && _a !== void 0 ? _a : "").toFixed()
                 };
                 if (this.hasVoted && this.data.options[this.userWeightVote.option] && this.onSelect)
                     this.onSelect(this.userWeightVote.option);
@@ -676,7 +674,8 @@ define("@scom/scom-governance-voting/voteList.tsx", ["require", "exports", "@ijs
             this._state = value;
         }
         get selectedChoiceText() {
-            return this.selectedItem?.optionText || this.data?.selectedVotes[0] || this.optionValue;
+            var _a, _b;
+            return ((_a = this.selectedItem) === null || _a === void 0 ? void 0 : _a.optionText) || ((_b = this.data) === null || _b === void 0 ? void 0 : _b.selectedVotes[0]) || this.optionValue;
         }
         get hasVoted() {
             return !(this.userWeightVote.weight == 0 || this.userWeightVote.weight == undefined);
@@ -832,7 +831,8 @@ define("@scom/scom-governance-voting/formSchema.ts", ["require", "exports", "@sc
                             return networkPicker;
                         },
                         getData: (control) => {
-                            return control.selectedNetwork?.chainId;
+                            var _a;
+                            return (_a = control.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
                         },
                         setData: (control, value) => {
                             control.setNetworkByChainId(value);
@@ -929,6 +929,11 @@ define("@scom/scom-governance-voting/flow/initialSetup.tsx", ["require", "export
         }
         async handleClickStart() {
             this.executionProperties.votingAddress = this.edtVotingAddress.value || "";
+            if (this.state.handleUpdateStepStatus)
+                this.state.handleUpdateStepStatus({
+                    caption: "Completed",
+                    color: Theme.colors.success.main
+                });
             if (this.state.handleNextFlowStep)
                 this.state.handleNextFlowStep({
                     isInitialSetup: true,
@@ -958,6 +963,7 @@ define("@scom/scom-governance-voting/flow/initialSetup.tsx", ["require", "export
                 this.state.handleNextFlowStep = options.onNextStep;
                 this.state.handleAddTransactions = options.onAddTransactions;
                 this.state.handleJumpToStep = options.onJumpToStep;
+                this.state.handleUpdateStepStatus = options.onUpdateStepStatus;
                 await this.setData({
                     executionProperties: properties,
                     tokenRequirements
@@ -1001,19 +1007,22 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this._data.defaultChainId = value;
         }
         get wallets() {
-            return this._data.wallets ?? [];
+            var _a;
+            return (_a = this._data.wallets) !== null && _a !== void 0 ? _a : [];
         }
         set wallets(value) {
             this._data.wallets = value;
         }
         get networks() {
-            return this._data.networks ?? [];
+            var _a;
+            return (_a = this._data.networks) !== null && _a !== void 0 ? _a : [];
         }
         set networks(value) {
             this._data.networks = value;
         }
         get showHeader() {
-            return this._data.showHeader ?? true;
+            var _a;
+            return (_a = this._data.showHeader) !== null && _a !== void 0 ? _a : true;
         }
         set showHeader(value) {
             this._data.showHeader = value;
@@ -1088,7 +1097,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     console.log(err);
                 }
             };
-            this.initializeWidgetConfig = async () => {
+            this.initializeWidgetConfig = async (isUpdateStepStatus) => {
                 setTimeout(async () => {
                     const chainId = this.chainId;
                     scom_token_list_3.tokenStore.updateTokenMapData(chainId);
@@ -1099,7 +1108,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     }
                     this.lblVotingAddress.caption = this.votingAddress;
                     this.updateBalanceStack();
-                    await this.getVotingResult();
+                    await this.getVotingResult(isUpdateStepStatus);
                     const connected = (0, index_2.isClientWalletConnected)();
                     if (!connected || !this.state.isRpcWalletConnected()) {
                         this.btnSubmitVote.caption = connected ? "Switch Network" : "Connect Wallet";
@@ -1122,7 +1131,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 else {
                     params.content = content;
                 }
-                this.txStatusModal.message = { ...params };
+                this.txStatusModal.message = Object.assign({}, params);
                 this.txStatusModal.showModal();
             };
             this.connectWallet = async () => {
@@ -1140,7 +1149,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     await clientWallet.switchNetwork(this.chainId);
                 }
             };
-            this.registerSendTxEvents = () => {
+            this.registerSendTxEvents = (confirmationCallback) => {
                 const txHashCallback = async (err, receipt) => {
                     if (err) {
                         this.showResultMessage('error', err);
@@ -1148,9 +1157,6 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     else if (receipt) {
                         this.showResultMessage('success', receipt);
                     }
-                };
-                const confirmationCallback = async (receipt) => {
-                    this.refreshUI();
                 };
                 const wallet = eth_wallet_5.Wallet.getClientInstance();
                 wallet.registerSendTxEvents({
@@ -1225,10 +1231,10 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                                 this._data.votingAddress = votingAddress;
                                 this.resetRpcWallet();
                                 this.refreshUI();
-                                if (builder?.setData)
+                                if (builder === null || builder === void 0 ? void 0 : builder.setData)
                                     builder.setData(this._data);
                                 oldTag = JSON.parse(JSON.stringify(this.tag));
-                                if (builder?.setTag)
+                                if (builder === null || builder === void 0 ? void 0 : builder.setTag)
                                     builder.setTag(themeSettings);
                                 else
                                     this.setTag(themeSettings);
@@ -1238,10 +1244,10 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                             undo: () => {
                                 this._data = JSON.parse(JSON.stringify(oldData));
                                 this.refreshUI();
-                                if (builder?.setData)
+                                if (builder === null || builder === void 0 ? void 0 : builder.setData)
                                     builder.setData(this._data);
                                 this.tag = JSON.parse(JSON.stringify(oldTag));
-                                if (builder?.setTag)
+                                if (builder === null || builder === void 0 ? void 0 : builder.setTag)
                                     builder.setTag(this.tag);
                                 else
                                     this.setTag(this.tag);
@@ -1296,7 +1302,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     getData: this.getData.bind(this),
                     setData: async (data) => {
                         const defaultData = data_json_1.default.defaultBuilderData;
-                        await this.setData({ ...defaultData, ...data });
+                        await this.setData(Object.assign(Object.assign({}, defaultData), data));
                     },
                     getTag: this.getTag.bind(this),
                     setTag: this.setTag.bind(this)
@@ -1305,13 +1311,12 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     name: 'Embedder Configurator',
                     target: 'Embedders',
                     getData: async () => {
-                        return { ...this._data };
+                        return Object.assign({}, this._data);
                     },
                     setData: async (properties, linkParams) => {
-                        let resultingData = {
-                            ...properties
-                        };
-                        if (!properties.defaultChainId && properties.networks?.length) {
+                        var _a;
+                        let resultingData = Object.assign({}, properties);
+                        if (!properties.defaultChainId && ((_a = properties.networks) === null || _a === void 0 ? void 0 : _a.length)) {
                             resultingData.defaultChainId = properties.networks[0].chainId;
                         }
                         await this.setData(resultingData);
@@ -1333,7 +1338,8 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             return this.tag;
         }
         updateTag(type, value) {
-            this.tag[type] = this.tag[type] ?? {};
+            var _a;
+            this.tag[type] = (_a = this.tag[type]) !== null && _a !== void 0 ? _a : {};
             for (let prop in value) {
                 if (value.hasOwnProperty(prop))
                     this.tag[type][prop] = value[prop];
@@ -1353,6 +1359,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 this.dappContainer.setTag(this.tag);
         }
         resetRpcWallet() {
+            var _a;
             this.removeRpcWalletEvents();
             const rpcWalletId = this.state.initRpcWallet(this.defaultChainId);
             const rpcWallet = this.state.getRpcWallet();
@@ -1369,11 +1376,11 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 showHeader: this.showHeader,
                 rpcWalletId: rpcWallet.instanceId
             };
-            if (this.dappContainer?.setData)
+            if ((_a = this.dappContainer) === null || _a === void 0 ? void 0 : _a.setData)
                 this.dappContainer.setData(data);
         }
-        async refreshUI() {
-            await this.initializeWidgetConfig();
+        async refreshUI(isUpdateStepStatus) {
+            await this.initializeWidgetConfig(isUpdateStepStatus);
         }
         async setGovBalance() {
             const wallet = this.state.getRpcWallet();
@@ -1387,8 +1394,9 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.lockTill = freezeStake.lockTill;
         }
         updateBalanceStack() {
+            var _a;
             const chainId = this.state.getChainId();
-            const govTokenSymbol = this.state.getGovToken(chainId)?.symbol || '';
+            const govTokenSymbol = ((_a = this.state.getGovToken(chainId)) === null || _a === void 0 ? void 0 : _a.symbol) || '';
             const canDisplay = this.freezeStakeAmount.gt(0);
             this.lblStakedBalance.caption = `${this.stakedBalance} ${govTokenSymbol}`;
             this.lblFreezeStakeAmount.visible = canDisplay;
@@ -1400,7 +1408,35 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             }
             this.lblVotingBalance.caption = `${this.votingBalance} ${govTokenSymbol}`;
         }
-        async getVotingResult() {
+        getStepStatusTextAndColor(votingResultStatus) {
+            let status = "";
+            let color;
+            switch (votingResultStatus) {
+                case "vetoed":
+                    status = "Vetoed";
+                    color = Theme.colors.error.main;
+                    break;
+                case "in_progress":
+                    status = "Waiting to vote";
+                    color = Theme.colors.warning.main;
+                    break;
+                case "not_passed":
+                    status = "Not Passed";
+                    color = Theme.colors.error.main;
+                    break;
+                case "waiting_execution_delay":
+                case "waiting_execution":
+                    status = "Pending for execution";
+                    color = Theme.colors.warning.main;
+                    break;
+                case "executed":
+                    status = "Completed";
+                    color = Theme.colors.success.main;
+                    break;
+            }
+            return { status, color };
+        }
+        async getVotingResult(isUpdateStepStatus) {
             const votingResult = await (0, api_2.getVotingResult)(this.state, this.votingAddress);
             if (votingResult) {
                 this.proposalType = votingResult.hasOwnProperty('executeParam') ? 'Executive' : 'Poll';
@@ -1434,8 +1470,12 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                         .toDate();
                     this.votingQuorum = votingResult.quorum;
                 }
-                else {
-                    // Render Chart
+                if (isUpdateStepStatus && this.state.handleUpdateStepStatus) {
+                    const { status, color } = this.getStepStatusTextAndColor(votingResult === null || votingResult === void 0 ? void 0 : votingResult.status);
+                    this.state.handleUpdateStepStatus({
+                        caption: status,
+                        color
+                    });
                 }
             }
             else {
@@ -1459,8 +1499,9 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             return (0, components_6.moment)(value).format('MMM. DD, YYYY') + ' at ' + (0, components_6.moment)(value).format('HH:mm');
         }
         updateMainUI() {
-            const optionY = new eth_wallet_5.BigNumber(this.voteOptions?.Y ?? 0);
-            const optionN = new eth_wallet_5.BigNumber(this.voteOptions?.N ?? 0);
+            var _a, _b, _c, _d;
+            const optionY = new eth_wallet_5.BigNumber((_b = (_a = this.voteOptions) === null || _a === void 0 ? void 0 : _a.Y) !== null && _b !== void 0 ? _b : 0);
+            const optionN = new eth_wallet_5.BigNumber((_d = (_c = this.voteOptions) === null || _c === void 0 ? void 0 : _c.N) !== null && _d !== void 0 ? _d : 0);
             const votingQuorum = new eth_wallet_5.BigNumber(this.votingQuorum);
             this.inFavourBar.width = !votingQuorum.eq(0) ? `${optionY.div(votingQuorum).times(100).toFixed()}%` : 0;
             this.lblVoteOptionY.caption = optionY.toFixed();
@@ -1499,37 +1540,43 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     const votingAddress = this.votingAddress;
                     const chainId = this.chainId;
                     this.showResultMessage('warning', `Executing proposal ${votingAddress}`);
-                    this.registerSendTxEvents();
-                    const receipt = await (0, api_2.execute)(votingAddress);
-                    if (this.state.handleAddTransactions && receipt) {
-                        const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
-                        const transactionsInfoArr = [
-                            {
-                                desc: 'Execute proposal',
-                                chainId: chainId,
-                                fromToken: null,
-                                toToken: null,
-                                fromTokenAmount: '',
-                                toTokenAmount: '-',
-                                hash: receipt.transactionHash,
-                                timestamp,
-                                value: votingAddress
-                            }
-                        ];
-                        this.state.handleAddTransactions({
-                            list: transactionsInfoArr
-                        });
-                    }
-                    if (this.state.handleJumpToStep) {
-                        this.state.handleJumpToStep({
-                            widgetName: 'scom-group-queue-pair',
-                            executionProperties: {
-                                fromToken: this._data.fromToken || '',
-                                toToken: this._data.toToken || '',
-                                isFlow: true
-                            }
-                        });
-                    }
+                    const confirmationCallback = async (receipt) => {
+                        if (this.state.handleAddTransactions && receipt) {
+                            const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
+                            const transactionsInfoArr = [
+                                {
+                                    desc: 'Execute proposal',
+                                    chainId: chainId,
+                                    fromToken: null,
+                                    toToken: null,
+                                    fromTokenAmount: '',
+                                    toTokenAmount: '-',
+                                    hash: receipt.transactionHash,
+                                    timestamp,
+                                    value: votingAddress
+                                }
+                            ];
+                            this.state.handleAddTransactions({
+                                list: transactionsInfoArr
+                            });
+                        }
+                        if (this.state.handleUpdateStepStatus) {
+                            await this.getVotingResult(true);
+                        }
+                        if (this.state.handleJumpToStep) {
+                            this.updateMainUI();
+                            this.state.handleJumpToStep({
+                                widgetName: 'scom-group-queue-pair',
+                                executionProperties: {
+                                    fromToken: this._data.fromToken || '',
+                                    toToken: this._data.toToken || '',
+                                    isFlow: true
+                                }
+                            });
+                        }
+                    };
+                    this.registerSendTxEvents(confirmationCallback);
+                    await (0, api_2.execute)(votingAddress);
                     this.btnExecute.rightIcon.spin = false;
                     this.btnExecute.rightIcon.visible = false;
                 }
@@ -1551,30 +1598,33 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 this.btnSubmitVote.rightIcon.spin = true;
                 this.btnSubmitVote.rightIcon.visible = true;
                 this.showResultMessage('warning');
-                this.registerSendTxEvents();
                 const voteOption = this.selectedVoteObj.optionText;
                 const votingAddress = this.votingAddress;
                 const chainId = this.chainId;
-                const receipt = await (0, api_2.vote)(votingAddress, this.selectedVoteObj.optionValue.toString());
-                if (this.state.handleAddTransactions && receipt) {
-                    const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
-                    const transactionsInfoArr = [
-                        {
-                            desc: `Vote on proposal ${votingAddress}`,
-                            chainId: chainId,
-                            fromToken: null,
-                            toToken: null,
-                            fromTokenAmount: '',
-                            toTokenAmount: '-',
-                            hash: receipt.transactionHash,
-                            timestamp,
-                            value: voteOption,
-                        }
-                    ];
-                    this.state.handleAddTransactions({
-                        list: transactionsInfoArr
-                    });
-                }
+                const confirmationCallback = async (receipt) => {
+                    if (this.state.handleAddTransactions && receipt) {
+                        const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
+                        const transactionsInfoArr = [
+                            {
+                                desc: `Vote on proposal ${votingAddress}`,
+                                chainId: chainId,
+                                fromToken: null,
+                                toToken: null,
+                                fromTokenAmount: '',
+                                toTokenAmount: '-',
+                                hash: receipt.transactionHash,
+                                timestamp,
+                                value: voteOption,
+                            }
+                        ];
+                        this.state.handleAddTransactions({
+                            list: transactionsInfoArr
+                        });
+                    }
+                    this.refreshUI(true);
+                };
+                this.registerSendTxEvents(confirmationCallback);
+                await (0, api_2.vote)(votingAddress, this.selectedVoteObj.optionValue.toString());
                 this.btnSubmitVote.rightIcon.spin = false;
                 this.btnSubmitVote.rightIcon.visible = false;
             }
@@ -1717,6 +1767,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 this.state.handleNextFlowStep = options.onNextStep;
                 this.state.handleAddTransactions = options.onAddTransactions;
                 this.state.handleJumpToStep = options.onJumpToStep;
+                this.state.handleUpdateStepStatus = options.onUpdateStepStatus;
                 await this.setData(properties);
                 if (tag) {
                     this.setTag(tag);
