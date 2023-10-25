@@ -457,7 +457,7 @@ declare module "@scom/scom-governance-voting" {
         private handleExecute;
         private onSubmitVote;
         private updateAddress;
-        private openModal;
+        private openAddressModal;
         render(): any;
         handleFlowStage(target: Control, stage: string, options: any): Promise<{
             widget: any;

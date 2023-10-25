@@ -90,17 +90,16 @@ define("@scom/scom-governance-voting/store/utils.ts", ["require", "exports", "@i
             }
         }
         initRpcWallet(defaultChainId) {
-            var _a, _b, _c;
             if (this.rpcWalletId) {
                 return this.rpcWalletId;
             }
             const clientWallet = eth_wallet_1.Wallet.getClientInstance();
-            const networkList = Object.values(((_a = components_1.application.store) === null || _a === void 0 ? void 0 : _a.networkMap) || []);
+            const networkList = Object.values(components_1.application.store?.networkMap || []);
             const instanceId = clientWallet.initRpcWallet({
                 networks: networkList,
                 defaultChainId,
-                infuraId: (_b = components_1.application.store) === null || _b === void 0 ? void 0 : _b.infuraId,
-                multicalls: (_c = components_1.application.store) === null || _c === void 0 ? void 0 : _c.multicalls
+                infuraId: components_1.application.store?.infuraId,
+                multicalls: components_1.application.store?.multicalls
             });
             this.rpcWalletId = instanceId;
             if (clientWallet.address) {
@@ -114,11 +113,11 @@ define("@scom/scom-governance-voting/store/utils.ts", ["require", "exports", "@i
         }
         isRpcWalletConnected() {
             const wallet = this.getRpcWallet();
-            return wallet === null || wallet === void 0 ? void 0 : wallet.isConnected;
+            return wallet?.isConnected;
         }
         getChainId() {
             const rpcWallet = this.getRpcWallet();
-            return rpcWallet === null || rpcWallet === void 0 ? void 0 : rpcWallet.chainId;
+            return rpcWallet?.chainId;
         }
         setNetworkList(networkList, infuraId) {
             const wallet = eth_wallet_1.Wallet.getClientInstance();
@@ -137,12 +136,18 @@ define("@scom/scom-governance-voting/store/utils.ts", ["require", "exports", "@i
                         network.rpcUrls[i] = network.rpcUrls[i].replace(/{InfuraId}/g, infuraId);
                     }
                 }
-                this.networkMap[network.chainId] = Object.assign(Object.assign({}, networkInfo), network);
+                this.networkMap[network.chainId] = {
+                    ...networkInfo,
+                    ...network
+                };
                 wallet.setNetworkInfo(this.networkMap[network.chainId]);
             }
         }
         async setApprovalModelAction(options) {
-            const approvalOptions = Object.assign(Object.assign({}, options), { spenderAddress: '' });
+            const approvalOptions = {
+                ...options,
+                spenderAddress: ''
+            };
             let wallet = this.getRpcWallet();
             this.approvalModel = new eth_wallet_1.ERC20ApprovalModel(wallet, approvalOptions);
             let approvalModelAction = this.approvalModel.getAction();
@@ -152,9 +157,8 @@ define("@scom/scom-governance-voting/store/utils.ts", ["require", "exports", "@i
             return core_1.coreAddress[chainId || this.getChainId()];
         }
         getGovToken(chainId) {
-            var _a;
             let govToken;
-            let address = (_a = this.getAddresses(chainId)) === null || _a === void 0 ? void 0 : _a.GOV_TOKEN;
+            let address = this.getAddresses(chainId)?.GOV_TOKEN;
             if (chainId == 43113 || chainId == 43114 || chainId == 42161 || chainId == 421613 || chainId == 80001 || chainId == 137) {
                 govToken = { address: address, decimals: 18, symbol: "veOSWAP", name: 'Vote-escrowed OSWAP' };
             }
@@ -473,7 +477,6 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
         return executeParam;
     }
     function getVotingTitle(state, result) {
-        var _a, _b, _c, _d;
         let title;
         if (!result.executeParam)
             return title;
@@ -481,8 +484,8 @@ define("@scom/scom-governance-voting/api.ts", ["require", "exports", "@ijstech/e
         const token1 = result.executeParam.token1;
         const chainId = state.getChainId();
         let tokenMap = scom_token_list_2.tokenStore.getTokenMapByChainId(chainId);
-        let symbol0 = token0 ? (_b = (_a = tokenMap[token0.toLowerCase()]) === null || _a === void 0 ? void 0 : _a.symbol) !== null && _b !== void 0 ? _b : '' : '';
-        let symbol1 = token1 ? (_d = (_c = tokenMap[token1.toLowerCase()]) === null || _c === void 0 ? void 0 : _c.symbol) !== null && _d !== void 0 ? _d : '' : '';
+        let symbol0 = token0 ? tokenMap[token0.toLowerCase()]?.symbol ?? '' : '';
+        let symbol1 = token1 ? tokenMap[token1.toLowerCase()]?.symbol ?? '' : '';
         switch (result.executeParam.cmd) {
             case "addOldOracleToNewPair":
                 title = "Add Price Oracle for Pair " + symbol0 + "/" + symbol1;
@@ -649,12 +652,11 @@ define("@scom/scom-governance-voting/voteList.tsx", ["require", "exports", "@ijs
             super(...arguments);
             this.userWeightVote = {};
             this.getVoteOptions = async () => {
-                var _a;
                 const address = eth_wallet_3.Wallet.getClientInstance().account.address;
                 const getOptionVote = await (0, api_1.getOptionVoted)(this.state, this.data.address, address);
                 this.userWeightVote = {
-                    option: getOptionVote === null || getOptionVote === void 0 ? void 0 : getOptionVote.option,
-                    weight: eth_wallet_3.Utils.fromDecimals((_a = getOptionVote === null || getOptionVote === void 0 ? void 0 : getOptionVote.weight) !== null && _a !== void 0 ? _a : "").toFixed()
+                    option: getOptionVote?.option,
+                    weight: eth_wallet_3.Utils.fromDecimals(getOptionVote?.weight ?? "").toFixed()
                 };
                 if (this.hasVoted && this.data.options[this.userWeightVote.option] && this.onSelect)
                     this.onSelect(this.userWeightVote.option);
@@ -674,8 +676,7 @@ define("@scom/scom-governance-voting/voteList.tsx", ["require", "exports", "@ijs
             this._state = value;
         }
         get selectedChoiceText() {
-            var _a, _b;
-            return ((_a = this.selectedItem) === null || _a === void 0 ? void 0 : _a.optionText) || ((_b = this.data) === null || _b === void 0 ? void 0 : _b.selectedVotes[0]) || this.optionValue;
+            return this.selectedItem?.optionText || this.data?.selectedVotes[0] || this.optionValue;
         }
         get hasVoted() {
             return !(this.userWeightVote.weight == 0 || this.userWeightVote.weight == undefined);
@@ -831,8 +832,7 @@ define("@scom/scom-governance-voting/formSchema.ts", ["require", "exports", "@sc
                             return networkPicker;
                         },
                         getData: (control) => {
-                            var _a;
-                            return (_a = control.selectedNetwork) === null || _a === void 0 ? void 0 : _a.chainId;
+                            return control.selectedNetwork?.chainId;
                         },
                         setData: (control, value) => {
                             control.setNetworkByChainId(value);
@@ -1007,22 +1007,19 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this._data.defaultChainId = value;
         }
         get wallets() {
-            var _a;
-            return (_a = this._data.wallets) !== null && _a !== void 0 ? _a : [];
+            return this._data.wallets ?? [];
         }
         set wallets(value) {
             this._data.wallets = value;
         }
         get networks() {
-            var _a;
-            return (_a = this._data.networks) !== null && _a !== void 0 ? _a : [];
+            return this._data.networks ?? [];
         }
         set networks(value) {
             this._data.networks = value;
         }
         get showHeader() {
-            var _a;
-            return (_a = this._data.showHeader) !== null && _a !== void 0 ? _a : true;
+            return this._data.showHeader ?? true;
         }
         set showHeader(value) {
             this._data.showHeader = value;
@@ -1131,7 +1128,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 else {
                     params.content = content;
                 }
-                this.txStatusModal.message = Object.assign({}, params);
+                this.txStatusModal.message = { ...params };
                 this.txStatusModal.showModal();
             };
             this.connectWallet = async () => {
@@ -1231,10 +1228,10 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                                 this._data.votingAddress = votingAddress;
                                 this.resetRpcWallet();
                                 this.refreshUI();
-                                if (builder === null || builder === void 0 ? void 0 : builder.setData)
+                                if (builder?.setData)
                                     builder.setData(this._data);
                                 oldTag = JSON.parse(JSON.stringify(this.tag));
-                                if (builder === null || builder === void 0 ? void 0 : builder.setTag)
+                                if (builder?.setTag)
                                     builder.setTag(themeSettings);
                                 else
                                     this.setTag(themeSettings);
@@ -1244,10 +1241,10 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                             undo: () => {
                                 this._data = JSON.parse(JSON.stringify(oldData));
                                 this.refreshUI();
-                                if (builder === null || builder === void 0 ? void 0 : builder.setData)
+                                if (builder?.setData)
                                     builder.setData(this._data);
                                 this.tag = JSON.parse(JSON.stringify(oldTag));
-                                if (builder === null || builder === void 0 ? void 0 : builder.setTag)
+                                if (builder?.setTag)
                                     builder.setTag(this.tag);
                                 else
                                     this.setTag(this.tag);
@@ -1302,7 +1299,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     getData: this.getData.bind(this),
                     setData: async (data) => {
                         const defaultData = data_json_1.default.defaultBuilderData;
-                        await this.setData(Object.assign(Object.assign({}, defaultData), data));
+                        await this.setData({ ...defaultData, ...data });
                     },
                     getTag: this.getTag.bind(this),
                     setTag: this.setTag.bind(this)
@@ -1311,12 +1308,13 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     name: 'Embedder Configurator',
                     target: 'Embedders',
                     getData: async () => {
-                        return Object.assign({}, this._data);
+                        return { ...this._data };
                     },
                     setData: async (properties, linkParams) => {
-                        var _a;
-                        let resultingData = Object.assign({}, properties);
-                        if (!properties.defaultChainId && ((_a = properties.networks) === null || _a === void 0 ? void 0 : _a.length)) {
+                        let resultingData = {
+                            ...properties
+                        };
+                        if (!properties.defaultChainId && properties.networks?.length) {
                             resultingData.defaultChainId = properties.networks[0].chainId;
                         }
                         await this.setData(resultingData);
@@ -1338,8 +1336,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             return this.tag;
         }
         updateTag(type, value) {
-            var _a;
-            this.tag[type] = (_a = this.tag[type]) !== null && _a !== void 0 ? _a : {};
+            this.tag[type] = this.tag[type] ?? {};
             for (let prop in value) {
                 if (value.hasOwnProperty(prop))
                     this.tag[type][prop] = value[prop];
@@ -1359,7 +1356,6 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 this.dappContainer.setTag(this.tag);
         }
         resetRpcWallet() {
-            var _a;
             this.removeRpcWalletEvents();
             const rpcWalletId = this.state.initRpcWallet(this.defaultChainId);
             const rpcWallet = this.state.getRpcWallet();
@@ -1376,7 +1372,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 showHeader: this.showHeader,
                 rpcWalletId: rpcWallet.instanceId
             };
-            if ((_a = this.dappContainer) === null || _a === void 0 ? void 0 : _a.setData)
+            if (this.dappContainer?.setData)
                 this.dappContainer.setData(data);
         }
         async refreshUI() {
@@ -1394,9 +1390,8 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.lockTill = freezeStake.lockTill;
         }
         updateBalanceStack() {
-            var _a;
             const chainId = this.state.getChainId();
-            const govTokenSymbol = ((_a = this.state.getGovToken(chainId)) === null || _a === void 0 ? void 0 : _a.symbol) || '';
+            const govTokenSymbol = this.state.getGovToken(chainId)?.symbol || '';
             const canDisplay = this.freezeStakeAmount.gt(0);
             this.lblStakedBalance.caption = `${this.stakedBalance} ${govTokenSymbol}`;
             this.lblFreezeStakeAmount.visible = canDisplay;
@@ -1471,7 +1466,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     this.votingQuorum = votingResult.quorum;
                 }
                 if (isUpdateStepStatus && this.state.handleUpdateStepStatus) {
-                    const { status, color } = this.getStepStatusTextAndColor(votingResult === null || votingResult === void 0 ? void 0 : votingResult.status);
+                    const { status, color } = this.getStepStatusTextAndColor(votingResult?.status);
                     this.state.handleUpdateStepStatus({
                         caption: status,
                         color
@@ -1499,9 +1494,8 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             return (0, components_6.moment)(value).format('MMM. DD, YYYY') + ' at ' + (0, components_6.moment)(value).format('HH:mm');
         }
         updateMainUI() {
-            var _a, _b, _c, _d;
-            const optionY = new eth_wallet_5.BigNumber((_b = (_a = this.voteOptions) === null || _a === void 0 ? void 0 : _a.Y) !== null && _b !== void 0 ? _b : 0);
-            const optionN = new eth_wallet_5.BigNumber((_d = (_c = this.voteOptions) === null || _c === void 0 ? void 0 : _c.N) !== null && _d !== void 0 ? _d : 0);
+            const optionY = new eth_wallet_5.BigNumber(this.voteOptions?.Y ?? 0);
+            const optionN = new eth_wallet_5.BigNumber(this.voteOptions?.N ?? 0);
             const votingQuorum = new eth_wallet_5.BigNumber(this.votingQuorum);
             this.inFavourBar.width = !votingQuorum.eq(0) ? `${optionY.div(votingQuorum).times(100).toFixed()}%` : 0;
             this.lblVoteOptionY.caption = optionY.toFixed();
@@ -1654,7 +1648,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             this.mdUpdateAddress.visible = false;
             this.refreshUI();
         }
-        openModal() {
+        openAddressModal() {
             this.edtVotingAddress.value = this._data.votingAddress || "";
             this.mdUpdateAddress.visible = true;
         }
@@ -1672,7 +1666,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                                 this.$render("i-hstack", { padding: { bottom: "1rem" }, verticalAlignment: "center", gap: 4, wrap: "wrap" },
                                     this.$render("i-label", { caption: "Address: ", font: { size: '1rem', color: Theme.text.third, bold: true } }),
                                     this.$render("i-label", { id: "lblVotingAddress", font: { size: '1rem', color: Theme.text.third } }),
-                                    this.$render("i-button", { class: "btn-os", height: 28, width: 28, icon: { name: 'edit', height: 14, width: 14 }, margin: { left: 4 }, tooltip: { content: 'Edit', placement: 'top' }, onClick: this.openModal.bind(this) }),
+                                    this.$render("i-button", { class: "btn-os", height: 28, width: 28, icon: { name: 'edit', height: 14, width: 14 }, margin: { left: 4 }, tooltip: { content: 'Edit', placement: 'top' }, onClick: this.openAddressModal.bind(this) }),
                                     this.$render("i-button", { class: "btn-os", height: 28, width: 28, icon: { name: 'sync', height: 14, width: 14 }, margin: { left: 4 }, tooltip: { content: 'Refresh', placement: 'top' }, onClick: this.refreshUI.bind(this) })),
                                 this.$render("i-stack", { direction: "horizontal", alignItems: "start", justifyContent: "space-between", mediaQueries: [{
                                             maxWidth: '767px', properties: {

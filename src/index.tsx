@@ -784,7 +784,7 @@ export default class GovernanceVoting extends Module {
         this.refreshUI();
     }
 
-    private openModal() {
+    private openAddressModal() {
         this.edtVotingAddress.value = this._data.votingAddress || "";
         this.mdUpdateAddress.visible = true;
     }
@@ -826,7 +826,7 @@ export default class GovernanceVoting extends Module {
                                         icon={{ name: 'edit', height: 14, width: 14 }}
                                         margin={{ left: 4 }}
                                         tooltip={{ content: 'Edit', placement: 'top' }}
-                                        onClick={this.openModal.bind(this)}
+                                        onClick={this.openAddressModal.bind(this)}
                                     ></i-button>
                                     <i-button
                                         class="btn-os"
