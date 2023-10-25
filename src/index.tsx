@@ -430,8 +430,8 @@ export default class GovernanceVoting extends Module {
         if (this.dappContainer?.setData) this.dappContainer.setData(data);
     }
 
-    private async refreshUI(isUpdateStepStatus?: boolean) {
-        await this.initializeWidgetConfig(isUpdateStepStatus);
+    private async refreshUI() {
+        await this.initializeWidgetConfig();
     }
 
     private initWallet = async () => {
@@ -672,6 +672,9 @@ export default class GovernanceVoting extends Module {
                 this.showResultMessage('warning', `Executing proposal ${votingAddress}`);
 
                 const confirmationCallback = async (receipt: any) => {
+                    if (this.state.handleUpdateStepStatus) {
+                        await this.getVotingResult(true);
+                    }
                     if (this.state.handleAddTransactions && receipt) {
                         const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                         const transactionsInfoArr = [
@@ -690,9 +693,6 @@ export default class GovernanceVoting extends Module {
                         this.state.handleAddTransactions({
                             list: transactionsInfoArr
                         });
-                    }
-                    if (this.state.handleUpdateStepStatus) {
-                        await this.getVotingResult(true);
                     }
                     wallet.registerSendTxEvents({});
                     if (this.state.handleJumpToStep) {
@@ -755,7 +755,7 @@ export default class GovernanceVoting extends Module {
                         list: transactionsInfoArr
                     });
                 }
-                this.refreshUI(true);
+                this.initializeWidgetConfig(true);
                 wallet.registerSendTxEvents({});
             };
             this.registerSendTxEvents(confirmationCallback);

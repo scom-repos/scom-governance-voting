@@ -1379,8 +1379,8 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
             if ((_a = this.dappContainer) === null || _a === void 0 ? void 0 : _a.setData)
                 this.dappContainer.setData(data);
         }
-        async refreshUI(isUpdateStepStatus) {
-            await this.initializeWidgetConfig(isUpdateStepStatus);
+        async refreshUI() {
+            await this.initializeWidgetConfig();
         }
         async setGovBalance() {
             const wallet = this.state.getRpcWallet();
@@ -1542,6 +1542,9 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                     const chainId = this.chainId;
                     this.showResultMessage('warning', `Executing proposal ${votingAddress}`);
                     const confirmationCallback = async (receipt) => {
+                        if (this.state.handleUpdateStepStatus) {
+                            await this.getVotingResult(true);
+                        }
                         if (this.state.handleAddTransactions && receipt) {
                             const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                             const transactionsInfoArr = [
@@ -1560,9 +1563,6 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                             this.state.handleAddTransactions({
                                 list: transactionsInfoArr
                             });
-                        }
-                        if (this.state.handleUpdateStepStatus) {
-                            await this.getVotingResult(true);
                         }
                         wallet.registerSendTxEvents({});
                         if (this.state.handleJumpToStep) {
@@ -1625,7 +1625,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                             list: transactionsInfoArr
                         });
                     }
-                    this.refreshUI(true);
+                    this.initializeWidgetConfig(true);
                     wallet.registerSendTxEvents({});
                 };
                 this.registerSendTxEvents(confirmationCallback);
