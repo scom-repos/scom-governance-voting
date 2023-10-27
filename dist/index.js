@@ -931,7 +931,7 @@ define("@scom/scom-governance-voting/flow/initialSetup.tsx", ["require", "export
             this.executionProperties.votingAddress = this.edtVotingAddress.value || "";
             if (this.state.handleUpdateStepStatus)
                 this.state.handleUpdateStepStatus({
-                    caption: "Completed",
+                    status: "Completed",
                     color: Theme.colors.success.main
                 });
             if (this.state.handleNextFlowStep)
@@ -1468,7 +1468,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                 if (isUpdateStepStatus && this.state.handleUpdateStepStatus) {
                     const { status, color } = this.getStepStatusTextAndColor(votingResult?.status);
                     this.state.handleUpdateStepStatus({
-                        caption: status,
+                        status,
                         color
                     });
                 }

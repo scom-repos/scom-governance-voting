@@ -585,7 +585,7 @@ export default class GovernanceVoting extends Module {
             if (isUpdateStepStatus && this.state.handleUpdateStepStatus) {
                 const { status, color } = this.getStepStatusTextAndColor(votingResult?.status);
                 this.state.handleUpdateStepStatus({
-                    caption: status,
+                    status,
                     color
                 });
             }

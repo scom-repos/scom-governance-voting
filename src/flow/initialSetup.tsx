@@ -117,7 +117,7 @@ export default class ScomGovernanceVotingFlowInitialSetup extends Module {
         this.executionProperties.votingAddress = this.edtVotingAddress.value || "";
         if (this.state.handleUpdateStepStatus)
             this.state.handleUpdateStepStatus({
-                caption: "Completed",
+                status: "Completed",
                 color: Theme.colors.success.main
             });
         if (this.state.handleNextFlowStep)
