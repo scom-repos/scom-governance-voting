@@ -26,7 +26,7 @@ import configData from './data.json';
 import customStyles, { inputStyle, modalStyle } from './index.css';
 import { BigNumber, Constants, Wallet } from "@ijstech/eth-wallet";
 import { GovernanceVoteList } from './voteList';
-import { execute, freezedStake, getLatestVotingAddress, getVotingResult, stakeOf, vote } from "./api";
+import { freezedStake, getLatestVotingAddress, getVotingResult, stakeOf, vote } from "./api";
 import { tokenStore } from "@scom/scom-token-list";
 import { getFormSchema } from "./formSchema";
 import ScomGovernanceVotingFlowInitialSetup from "./flow/initialSetup";
@@ -86,8 +86,6 @@ export default class GovernanceVoting extends Module {
     private lblAgainstVotingQuorum: Label;
     private lblVoteStartTime: Label;
     private lblVoteEndTime: Label;
-    private lblExecuteDeplay: Label;
-    private btnExecute: Button;
     private lblProposalDesc: Label;
     private lblExecuteAction: Label;
     private lblExecuteValue: Label;
@@ -116,15 +114,12 @@ export default class GovernanceVoting extends Module {
     private executeAction: string = '';
     private executeValue: number | string = '0';
     private tokenAddress: string = '';
-    private executeDelaySeconds: number = 0;
     private voteStartTime: Date;
-    private executeDelayDatetime: Date;
     private stakedBalance: string = '0';
     private votingBalance: string = '0';
     private freezeStakeAmount: BigNumber = new BigNumber(0);
     private stakeOf: BigNumber = new BigNumber(0);
     private expiry: Date;
-    private isCanExecute: boolean;
     private latestVotingAddress: string;
 
     private get chainId() {
@@ -250,7 +245,6 @@ export default class GovernanceVoting extends Module {
 
     private _getActions(category?: string) {
         const formSchema: any = getFormSchema();
-        const rpcWallet = this.state.getRpcWallet();
         const actions: any[] = [];
         if (category && category !== 'offers') {
             actions.push({
@@ -311,7 +305,6 @@ export default class GovernanceVoting extends Module {
 
     private getProjectOwnerActions() {
         const formSchema: any = getFormSchema();
-        const rpcWallet = this.state.getRpcWallet();
         const actions: any[] = [
             {
                 name: 'Settings',
@@ -444,7 +437,7 @@ export default class GovernanceVoting extends Module {
         }
     }
 
-    private initializeWidgetConfig = async (isUpdateStepStatus?: boolean) => {
+    private initializeWidgetConfig = async () => {
         setTimeout(async () => {
             const chainId = this.chainId;
             tokenStore.updateTokenMapData(chainId);
@@ -455,7 +448,7 @@ export default class GovernanceVoting extends Module {
             }
             this.lblVotingAddress.caption = this.votingAddress;
             this.updateBalanceStack();
-            await this.getVotingResult(isUpdateStepStatus);
+            await this.getVotingResult();
             const connected = isClientWalletConnected();
             if (!connected || !this.state.isRpcWalletConnected()) {
                 this.btnSubmitVote.caption = connected ? "Switch Network" : "Connect Wallet";
@@ -522,47 +515,15 @@ export default class GovernanceVoting extends Module {
         this.lblVotingBalance.caption = `${this.votingBalance} ${govTokenSymbol}`;
     }
 
-    private getStepStatusTextAndColor(votingResultStatus: string) {
-        let status = "";
-        let color;
-        switch (votingResultStatus) {
-            case "vetoed":
-                status = "Vetoed";
-                color = Theme.colors.error.main;
-                break;
-            case "in_progress":
-                status = "Waiting to vote";
-                color = Theme.colors.warning.main;
-                break;
-            case "not_passed":
-                status = "Not Passed";
-                color = Theme.colors.error.main;
-                break;
-            case "waiting_execution_delay":
-            case "waiting_execution":
-                status = "Pending for execution";
-                color = Theme.colors.warning.main;
-                break;
-            case "executed":
-                status = "Completed";
-                color = Theme.colors.success.main;
-                break;
-        }
-        return { status, color };
-    }
-
-    private async getVotingResult(isUpdateStepStatus?: boolean) {
+    private async getVotingResult() {
         const votingResult = await getVotingResult(this.state, this.votingAddress);
         if (votingResult) {
             this.proposalType = votingResult.hasOwnProperty('executeParam') ? 'Executive' : 'Poll';
-            this.isCanExecute = votingResult.status == "waiting_execution";
             this.expiry = votingResult.endTime;
             this.voteStartTime = votingResult.voteStartTime;
             this.lblTitle.caption = this.lblProposalDesc.caption = this.proposalType == 'Executive' ? votingResult.title : votingResult.name;
-            // this.remain= votingResults.remain;
             this.voteOptions = votingResult.options;
             if (this.proposalType === 'Executive') {
-                // this.executiveDelay = votingResults.executiveDelay;
                 if (votingResult.executeParam) {
                     this.executeAction = executeActionMap[votingResult.executeParam.cmd] ? executeActionMap[votingResult.executeParam.cmd] : '';
                     if (votingResult.executeParam.value) {
@@ -576,22 +537,10 @@ export default class GovernanceVoting extends Module {
                         this.tokenAddress = votingResult.executeParam.token;
                     }
                 }
-                this.executeDelaySeconds = votingResult.executeDelay.toNumber();
-                this.executeDelayDatetime = moment(votingResult.endTime)
-                    .add(this.executeDelaySeconds, 'seconds')
-                    .toDate();
                 this.votingQuorum = votingResult.quorum;
-            }
-            if (isUpdateStepStatus && this.state.handleUpdateStepStatus) {
-                const { status, color } = this.getStepStatusTextAndColor(votingResult?.status);
-                this.state.handleUpdateStepStatus({
-                    status,
-                    color
-                });
             }
         } else {
             this.proposalType = 'Executive';
-            this.isCanExecute = false;
             this.expiry = null;
             this.voteStartTime = null;
             this.lblTitle.caption = this.lblProposalDesc.caption = "";
@@ -599,8 +548,6 @@ export default class GovernanceVoting extends Module {
             this.executeAction = '';
             this.executeValue = '0';
             this.tokenAddress = '';
-            this.executeDelaySeconds = 0;
-            this.executeDelayDatetime = null;
             this.votingQuorum = '0';
         }
     }
@@ -622,8 +569,6 @@ export default class GovernanceVoting extends Module {
         this.lblAgainstVotingQuorum.caption = votingQuorum.toFixed();
         this.lblVoteStartTime.caption = this.formatDate(this.voteStartTime);
         this.lblVoteEndTime.caption = this.formatDate(this.expiry);
-        this.lblExecuteDeplay.caption = this.formatDate(this.executeDelayDatetime);
-        this.btnExecute.enabled = this.isCanExecute;
         this.lblExecuteAction.caption = this.executeAction;
         this.lblExecuteValue.caption = this.executeValue.toString();
         this.lblVotingQuorum.caption = this.votingQuorum;
@@ -661,66 +606,6 @@ export default class GovernanceVoting extends Module {
         });
     }
 
-    private async handleExecute() {
-        const wallet = Wallet.getClientInstance();
-        try {
-            if (this.isCanExecute) {
-                this.btnExecute.rightIcon.spin = true;
-                this.btnExecute.rightIcon.visible = true;
-                const votingAddress = this.votingAddress;
-                const chainId = this.chainId;
-                this.showResultMessage('warning', `Executing proposal ${votingAddress}`);
-
-                const confirmationCallback = async (receipt: any) => {
-                    if (this.state.handleUpdateStepStatus) {
-                        await this.getVotingResult(true);
-                    }
-                    if (this.state.handleAddTransactions && receipt) {
-                        const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
-                        const transactionsInfoArr = [
-                            {
-                                desc: 'Execute proposal',
-                                chainId: chainId,
-                                fromToken: null,
-                                toToken: null,
-                                fromTokenAmount: '',
-                                toTokenAmount: '-',
-                                hash: receipt.transactionHash,
-                                timestamp,
-                                value: votingAddress
-                            }
-                        ];
-                        this.state.handleAddTransactions({
-                            list: transactionsInfoArr
-                        });
-                    }
-                    wallet.registerSendTxEvents({});
-                    if (this.state.handleJumpToStep) {
-                        this.updateMainUI();
-                        this.state.handleJumpToStep({
-                            widgetName: 'scom-group-queue-pair',
-                            executionProperties: {
-                                fromToken: this._data.fromToken || '',
-                                toToken: this._data.toToken || '',
-                                isFlow: true
-                            }
-                        })
-                    }
-                };
-
-                this.registerSendTxEvents(confirmationCallback);
-                await execute(votingAddress);
-                this.btnExecute.rightIcon.spin = false;
-                this.btnExecute.rightIcon.visible = false;
-            }
-        } catch (err) {
-            this.showResultMessage('error', err);
-            this.btnExecute.rightIcon.spin = false;
-            this.btnExecute.rightIcon.visible = false;
-            wallet.registerSendTxEvents({});
-        }
-    }
-
     private async onSubmitVote() {
         if (!isClientWalletConnected() || !this.state.isRpcWalletConnected()) {
             this.connectWallet();
@@ -736,6 +621,13 @@ export default class GovernanceVoting extends Module {
             const votingAddress = this.votingAddress;
             const chainId = this.chainId;
             const confirmationCallback = async (receipt: any) => {
+                if (this.state.handleUpdateStepStatus) {
+                    this.state.handleUpdateStepStatus({
+                        status: "Completed",
+                        color: Theme.colors.success.main,
+                        message: voteOption
+                    });
+                }
                 if (this.state.handleAddTransactions && receipt) {
                     const timestamp = await this.state.getRpcWallet().getBlockTimestamp(receipt.blockNumber.toString());
                     const transactionsInfoArr = [
@@ -754,8 +646,18 @@ export default class GovernanceVoting extends Module {
                     this.state.handleAddTransactions({
                         list: transactionsInfoArr
                     });
+                    if (this.state.handleJumpToStep) {
+                        this.state.handleJumpToStep({
+                            widgetName: 'scom-governance-execute-proposal',
+                            executionProperties: {
+                                votingAddress,
+                                fromToken: this._data.fromToken || '',
+                                toToken: this._data.toToken || '',
+                                isFlow: true
+                            }
+                        })
+                    }
                 }
-                this.initializeWidgetConfig(true);
                 wallet.registerSendTxEvents({});
             };
             this.registerSendTxEvents(confirmationCallback);
@@ -956,24 +858,6 @@ export default class GovernanceVoting extends Module {
                                         ></i-label>
                                         <i-label id="lblVoteEndTime" font={{ size: '1rem' }}></i-label>
                                     </i-vstack>
-                                    <i-vstack width="100%" gap="0.5rem">
-                                        <i-label
-                                            caption="Execute Delay"
-                                            font={{ size: 'clamp(1rem, 0.95rem + 0.25vw, 1.25rem)', color: Theme.colors.primary.main, bold: true }}
-                                        ></i-label>
-                                        <i-label id="lblExecuteDeplay" font={{ size: '1rem' }}></i-label>
-                                    </i-vstack>
-                                    <i-hstack width="100%" horizontalAlignment="end" verticalAlignment="center">
-                                        <i-button
-                                            id="btnExecute"
-                                            class="btn-os"
-                                            height="auto"
-                                            caption="Execute"
-                                            enabled={false}
-                                            padding={{ top: '0.35rem', bottom: '0.35rem', left: '1.5rem', right: '1.5rem' }}
-                                            onClick={this.handleExecute.bind(this)}
-                                        ></i-button>
-                                    </i-hstack>
                                 </i-stack>
                                 <i-grid-layout
                                     width="100%" minHeight={100}

@@ -1,8 +1,8 @@
 import { BigNumber, Utils, Wallet } from "@ijstech/eth-wallet";
 import { Contracts } from "@scom/oswap-openswap-contract";
-import { ITokenObject, tokenStore } from "@scom/scom-token-list";
+import { tokenStore } from "@scom/scom-token-list";
 import { IExecuteParam, IVotingParams, IVotingResult } from "./interface";
-import { getWETH, State } from "./store/index";
+import { State } from "./store/index";
 
 function govTokenDecimals(state: State) {
     const chainId = state.getChainId();
@@ -285,13 +285,6 @@ export async function getOptionVoted(state: State, votingAddress: string, addres
         result = { option: option, weight: weight };
     } catch (err) {}
     return result;
-}
-
-export async function execute(votingAddress: string) {
-    const wallet = Wallet.getClientInstance();
-    const votingContract = new Contracts.OAXDEX_VotingContract(wallet, votingAddress);
-    let receipt = await votingContract.execute();
-    return receipt;
 }
 
 export async function vote(votingAddress: string, value: string) {
