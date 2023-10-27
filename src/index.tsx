@@ -73,6 +73,7 @@ export default class GovernanceVoting extends Module {
     private loadingElm: Panel;
     private lblTitle: Label;
     private lblVotingAddress: Label;
+    private btnEditAddress: Button;
     private mdUpdateAddress: Modal;
     private edtVotingAddress: Input;
     private lblStakedBalance: Label;
@@ -447,6 +448,7 @@ export default class GovernanceVoting extends Module {
                 this.latestVotingAddress = await getLatestVotingAddress(this.state, this.chainId);
             }
             this.lblVotingAddress.caption = this.votingAddress;
+            this.btnEditAddress.visible = !this._data.isFlow;
             this.updateBalanceStack();
             await this.getVotingResult();
             const connected = isClientWalletConnected();
@@ -687,6 +689,7 @@ export default class GovernanceVoting extends Module {
     }
 
     private openAddressModal() {
+        if (this._data.isFlow) return;
         this.edtVotingAddress.value = this._data.votingAddress || "";
         this.mdUpdateAddress.visible = true;
     }
@@ -722,6 +725,7 @@ export default class GovernanceVoting extends Module {
                                     <i-label caption="Address: " font={{ size: '1rem', color: Theme.text.third, bold: true }}></i-label>
                                     <i-label id="lblVotingAddress" font={{ size: '1rem', color: Theme.text.third }}></i-label>
                                     <i-button
+                                        id="btnEditAddress"
                                         class="btn-os"
                                         height={28}
                                         width={28}

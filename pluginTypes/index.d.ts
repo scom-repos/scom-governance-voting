@@ -174,7 +174,6 @@ declare module "@scom/scom-governance-voting/api.ts" {
     export function getLatestVotingAddress(state: State, chainId: number): Promise<string>;
     export function getVotingResult(state: State, votingAddress: string): Promise<any>;
     export function getOptionVoted(state: State, votingAddress: string, address: string): Promise<any>;
-    export function execute(votingAddress: string): Promise<import("@ijstech/eth-contract").TransactionReceipt>;
     export function vote(votingAddress: string, value: string): Promise<import("@ijstech/eth-contract").TransactionReceipt>;
 }
 /// <amd-module name="@scom/scom-governance-voting/voteList.tsx" />
@@ -330,6 +329,7 @@ declare module "@scom/scom-governance-voting" {
         private loadingElm;
         private lblTitle;
         private lblVotingAddress;
+        private btnEditAddress;
         private mdUpdateAddress;
         private edtVotingAddress;
         private lblStakedBalance;
@@ -343,8 +343,6 @@ declare module "@scom/scom-governance-voting" {
         private lblAgainstVotingQuorum;
         private lblVoteStartTime;
         private lblVoteEndTime;
-        private lblExecuteDeplay;
-        private btnExecute;
         private lblProposalDesc;
         private lblExecuteAction;
         private lblExecuteValue;
@@ -367,15 +365,12 @@ declare module "@scom/scom-governance-voting" {
         private executeAction;
         private executeValue;
         private tokenAddress;
-        private executeDelaySeconds;
         private voteStartTime;
-        private executeDelayDatetime;
         private stakedBalance;
         private votingBalance;
         private freezeStakeAmount;
         private stakeOf;
         private expiry;
-        private isCanExecute;
         private latestVotingAddress;
         private get chainId();
         get defaultChainId(): number;
@@ -448,13 +443,11 @@ declare module "@scom/scom-governance-voting" {
         private connectWallet;
         private setGovBalance;
         private updateBalanceStack;
-        private getStepStatusTextAndColor;
         private getVotingResult;
         private formatDate;
         private updateMainUI;
         private selectVote;
         private registerSendTxEvents;
-        private handleExecute;
         private onSubmitVote;
         private updateAddress;
         private openAddressModal;
