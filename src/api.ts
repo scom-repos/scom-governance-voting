@@ -1,6 +1,6 @@
 import { BigNumber, Utils, Wallet } from "@ijstech/eth-wallet";
 import { Contracts } from "@scom/oswap-openswap-contract";
-import { tokenStore } from "@scom/scom-token-list";
+import { ITokenObject, tokenStore } from "@scom/scom-token-list";
 import { IExecuteParam, IVotingParams, IVotingResult } from "./interface";
 import { State } from "./store/index";
 
@@ -18,7 +18,7 @@ export async function stakeOf(state: State, address: string) {
         const govContract = new Contracts.OAXDEX_Governance(wallet, gov);
         let stakeOf = await govContract.stakeOf(address);
         result = Utils.fromDecimals(stakeOf, govTokenDecimals(state));
-    } catch (err) {}
+    } catch (err) { }
     return result;
 }
 
@@ -32,7 +32,7 @@ export async function freezedStake(state: State, address: string) {
         let freezedStake = await govContract.freezedStake(address);
         let minStakePeriod = await govContract.minStakePeriod();
         result = { amount: Utils.fromDecimals(freezedStake.amount, govTokenDecimals(state)), timestamp: Number(freezedStake.timestamp) * 1000, lockTill: (Number(freezedStake.timestamp) + Number(minStakePeriod)) * 1000 };
-    } catch (err) {}
+    } catch (err) { }
     return result;
 }
 
@@ -143,27 +143,36 @@ function parseVotingExecuteParam(params: IVotingParams) {
     return executeParam;
 }
 
-function getVotingTitle(state: State, result: any) {
+function getVotingTitle(state: State, result: any, customTokens?: Record<number, ITokenObject[]>) {
     let title: string;
     if (!result.executeParam) return title;
     const token0 = result.executeParam.token0;
     const token1 = result.executeParam.token1;
     const chainId = state.getChainId();
     let tokenMap = tokenStore.getTokenMapByChainId(chainId);
+    if (customTokens?.[chainId]?.length) {
+        for (let i = 0; i < customTokens[chainId].length; i++) {
+            let tokenItem = customTokens[chainId][i];
+            if (tokenItem.address)
+                tokenMap[tokenItem.address.toLowerCase()] = tokenItem;
+            else
+                tokenMap[tokenItem.symbol] = tokenItem;
+        }
+    }
     let symbol0 = token0 ? tokenMap[token0.toLowerCase()]?.symbol ?? '' : '';
     let symbol1 = token1 ? tokenMap[token1.toLowerCase()]?.symbol ?? '' : '';
     switch (result.executeParam.cmd) {
         case "addOldOracleToNewPair":
-          title = "Add Price Oracle for Pair " + symbol0 + "/" + symbol1;
-          break;
+            title = "Add Price Oracle for Pair " + symbol0 + "/" + symbol1;
+            break;
         case "setOracle":
-          title = "Add New / Change Price Oracle for Pair " + symbol0 + "/" + symbol1;
-          break;
+            title = "Add New / Change Price Oracle for Pair " + symbol0 + "/" + symbol1;
+            break;
     }
     return title;
 }
 
-function parseVotingParams(state: State, params: IVotingParams) {
+function parseVotingParams(state: State, params: IVotingParams, customTokens?: Record<number, ITokenObject[]>) {
     let result: IVotingResult = {
         executor: params.executor,
         address: '',
@@ -223,7 +232,7 @@ function parseVotingParams(state: State, params: IVotingParams) {
         }
         result.executeParam = parseVotingExecuteParam(params);
     }
-    let title = getVotingTitle(state, result);
+    let title = getVotingTitle(state, result, customTokens);
     if (title) result.title = title;
 
     return result;
@@ -260,16 +269,16 @@ export async function getLatestVotingAddress(state: State, chainId: number) {
     return address;
 }
 
-export async function getVotingResult(state: State, votingAddress: string) {
+export async function getVotingResult(state: State, votingAddress: string, customTokens?: Record<number, ITokenObject[]>) {
     if (!votingAddress) return;
     let result;
     try {
         const wallet = state.getRpcWallet();
         const votingContract = new Contracts.OAXDEX_VotingContract(wallet, votingAddress);
         const getParams = await votingContract.getParams();
-        result = parseVotingParams(state, getParams);
+        result = parseVotingParams(state, getParams, customTokens);
         result.address = votingAddress;
-    } catch (err) {}
+    } catch (err) { }
     return result;
 }
 
@@ -283,7 +292,7 @@ export async function getOptionVoted(state: State, votingAddress: string, addres
         let option = await votingContract.accountVoteOption(address);
         let weight = await votingContract.accountVoteWeight(address);
         result = { option: option, weight: weight };
-    } catch (err) {}
+    } catch (err) { }
     return result;
 }
 

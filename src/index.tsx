@@ -518,7 +518,7 @@ export default class GovernanceVoting extends Module {
     }
 
     private async getVotingResult() {
-        const votingResult = await getVotingResult(this.state, this.votingAddress);
+        const votingResult = await getVotingResult(this.state, this.votingAddress, this._data.customTokens);
         if (votingResult) {
             this.proposalType = votingResult.hasOwnProperty('executeParam') ? 'Executive' : 'Poll';
             this.expiry = votingResult.endTime;
@@ -655,6 +655,7 @@ export default class GovernanceVoting extends Module {
                                 votingAddress,
                                 fromToken: this._data.fromToken || '',
                                 toToken: this._data.toToken || '',
+                                customTokens: this._data.customTokens,
                                 isFlow: true
                             }
                         })

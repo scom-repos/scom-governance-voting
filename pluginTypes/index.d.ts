@@ -1,10 +1,12 @@
 /// <reference path="@scom/scom-dapp-container/@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@ijstech/eth-wallet/index.d.ts" />
 /// <reference path="@ijstech/eth-contract/index.d.ts" />
+/// <reference path="@scom/scom-token-list/index.d.ts" />
 /// <amd-module name="@scom/scom-governance-voting/interface.ts" />
 declare module "@scom/scom-governance-voting/interface.ts" {
     import { BigNumber } from "@ijstech/eth-wallet";
     import { INetworkConfig } from "@scom/scom-network-picker";
+    import { ITokenObject } from "@scom/scom-token-list";
     import { IWalletPlugin } from "@scom/scom-wallet-modal";
     export type ProposalType = 'Executive' | 'Poll';
     export interface IGovernanceVoting extends IGovernanceVotingFlow {
@@ -19,6 +21,7 @@ declare module "@scom/scom-governance-voting/interface.ts" {
         isFlow?: boolean;
         fromToken?: string;
         toToken?: string;
+        customTokens?: Record<number, ITokenObject[]>;
     }
     export interface IExecuteParam {
         cmd: string;
@@ -164,6 +167,7 @@ declare module "@scom/scom-governance-voting/index.css.ts" {
 /// <amd-module name="@scom/scom-governance-voting/api.ts" />
 declare module "@scom/scom-governance-voting/api.ts" {
     import { BigNumber } from "@ijstech/eth-wallet";
+    import { ITokenObject } from "@scom/scom-token-list";
     import { State } from "@scom/scom-governance-voting/store/index.ts";
     export function stakeOf(state: State, address: string): Promise<BigNumber>;
     export function freezedStake(state: State, address: string): Promise<{
@@ -172,7 +176,7 @@ declare module "@scom/scom-governance-voting/api.ts" {
         lockTill: number;
     }>;
     export function getLatestVotingAddress(state: State, chainId: number): Promise<string>;
-    export function getVotingResult(state: State, votingAddress: string): Promise<any>;
+    export function getVotingResult(state: State, votingAddress: string, customTokens?: Record<number, ITokenObject[]>): Promise<any>;
     export function getOptionVoted(state: State, votingAddress: string, address: string): Promise<any>;
     export function vote(votingAddress: string, value: string): Promise<import("@ijstech/eth-contract").TransactionReceipt>;
 }
@@ -423,6 +427,7 @@ declare module "@scom/scom-governance-voting" {
                 isFlow?: boolean;
                 fromToken?: string;
                 toToken?: string;
+                customTokens?: Record<number, import("@scom/scom-token-list").ITokenObject[]>;
             }>;
             setData: (properties: IGovernanceVoting, linkParams?: Record<string, any>) => Promise<void>;
             getTag: any;
