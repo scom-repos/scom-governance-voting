@@ -160,9 +160,6 @@ declare module "@scom/scom-governance-voting/index.css.ts" {
     export default _default_2;
     export const voteListStyle: string;
     export const comboBoxStyle: string;
-    export const inputStyle: string;
-    export const modalStyle: string;
-    export const flowInputStyle: string;
 }
 /// <amd-module name="@scom/scom-governance-voting/api.ts" />
 declare module "@scom/scom-governance-voting/api.ts" {

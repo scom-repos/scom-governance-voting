@@ -252,7 +252,7 @@ define("@scom/scom-governance-voting/data.json.ts", ["require", "exports"], func
 define("@scom/scom-governance-voting/index.css.ts", ["require", "exports", "@ijstech/components"], function (require, exports, components_3) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
-    exports.flowInputStyle = exports.modalStyle = exports.inputStyle = exports.comboBoxStyle = exports.voteListStyle = void 0;
+    exports.comboBoxStyle = exports.voteListStyle = void 0;
     const Theme = components_3.Styles.Theme.ThemeVars;
     exports.default = components_3.Styles.style({
         $nest: {
@@ -316,32 +316,6 @@ define("@scom/scom-governance-voting/index.css.ts", ["require", "exports", "@ijs
                 borderColor: Theme.input.background,
                 borderRadius: '0.625rem',
                 width: '42px'
-            }
-        }
-    });
-    exports.inputStyle = components_3.Styles.style({
-        $nest: {
-            'input': {
-                color: Theme.text.third,
-                padding: '0.375rem 0.5rem'
-            }
-        }
-    });
-    exports.modalStyle = components_3.Styles.style({
-        $nest: {
-            '.modal': {
-                padding: '1rem 1.5rem',
-                borderRadius: '0.5rem'
-            },
-            '.modal .i-modal_header': {
-                paddingBottom: '1.5rem'
-            }
-        }
-    });
-    exports.flowInputStyle = components_3.Styles.style({
-        $nest: {
-            'input': {
-                padding: '0.375rem 0.5rem'
             }
         }
     });
@@ -846,7 +820,7 @@ define("@scom/scom-governance-voting/formSchema.ts", ["require", "exports", "@sc
     }
     exports.getFormSchema = getFormSchema;
 });
-define("@scom/scom-governance-voting/flow/initialSetup.tsx", ["require", "exports", "@ijstech/components", "@scom/scom-governance-voting/store/index.ts", "@ijstech/eth-wallet", "@scom/scom-governance-voting/index.css.ts"], function (require, exports, components_5, index_1, eth_wallet_4, index_css_2) {
+define("@scom/scom-governance-voting/flow/initialSetup.tsx", ["require", "exports", "@ijstech/components", "@scom/scom-governance-voting/store/index.ts", "@ijstech/eth-wallet"], function (require, exports, components_5, index_1, eth_wallet_4) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const Theme = components_5.Styles.Theme.ThemeVars;
@@ -952,7 +926,7 @@ define("@scom/scom-governance-voting/flow/initialSetup.tsx", ["require", "export
                         this.$render("i-button", { id: "btnConnectWallet", caption: 'Connect Wallet', font: { color: Theme.colors.primary.contrastText }, padding: { top: '0.25rem', bottom: '0.25rem', left: '0.75rem', right: '0.75rem' }, onClick: this.connectWallet }))),
                 this.$render("i-label", { caption: "Enter voting address" }),
                 this.$render("i-hstack", { width: "50%", verticalAlignment: "center" },
-                    this.$render("i-input", { id: "edtVotingAddress", class: index_css_2.flowInputStyle, height: 32, width: "100%", border: { radius: 6 }, font: { size: '1rem' } })),
+                    this.$render("i-input", { id: "edtVotingAddress", height: 32, width: "100%", padding: { left: '0.5rem', right: '0.5rem' }, border: { radius: 6 }, font: { size: '1rem' } })),
                 this.$render("i-hstack", { horizontalAlignment: 'center' },
                     this.$render("i-button", { id: "btnStart", caption: "Start", padding: { top: '0.25rem', bottom: '0.25rem', left: '0.75rem', right: '0.75rem' }, font: { color: Theme.colors.primary.contrastText, size: '1.5rem' }, onClick: this.handleClickStart })),
                 this.$render("i-scom-wallet-modal", { id: "mdWallet", wallets: [] })));
@@ -979,7 +953,7 @@ define("@scom/scom-governance-voting/flow/initialSetup.tsx", ["require", "export
     ], ScomGovernanceVotingFlowInitialSetup);
     exports.default = ScomGovernanceVotingFlowInitialSetup;
 });
-define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/components", "@scom/scom-governance-voting/store/index.ts", "@scom/scom-governance-voting/assets.ts", "@scom/scom-governance-voting/data.json.ts", "@scom/scom-governance-voting/index.css.ts", "@ijstech/eth-wallet", "@scom/scom-governance-voting/api.ts", "@scom/scom-token-list", "@scom/scom-governance-voting/formSchema.ts", "@scom/scom-governance-voting/flow/initialSetup.tsx"], function (require, exports, components_6, index_2, assets_1, data_json_1, index_css_3, eth_wallet_5, api_2, scom_token_list_3, formSchema_1, initialSetup_1) {
+define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/components", "@scom/scom-governance-voting/store/index.ts", "@scom/scom-governance-voting/assets.ts", "@scom/scom-governance-voting/data.json.ts", "@scom/scom-governance-voting/index.css.ts", "@ijstech/eth-wallet", "@scom/scom-governance-voting/api.ts", "@scom/scom-token-list", "@scom/scom-governance-voting/formSchema.ts", "@scom/scom-governance-voting/flow/initialSetup.tsx"], function (require, exports, components_6, index_2, assets_1, data_json_1, index_css_2, eth_wallet_5, api_2, scom_token_list_3, formSchema_1, initialSetup_1) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     const Theme = components_6.Styles.Theme.ThemeVars;
@@ -1569,7 +1543,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         }
         render() {
             return (this.$render("i-scom-dapp-container", { id: "dappContainer" },
-                this.$render("i-panel", { class: index_css_3.default, background: { color: Theme.background.main } },
+                this.$render("i-panel", { class: index_css_2.default, background: { color: Theme.background.main } },
                     this.$render("i-panel", null,
                         this.$render("i-vstack", { id: "loadingElm", class: "i-loading-overlay" },
                             this.$render("i-vstack", { class: "i-loading-spinner", horizontalAlignment: "center", verticalAlignment: "center" },
@@ -1647,11 +1621,11 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                                         this.$render("i-scom-governance-voting-vote-list", { id: "governanceVoteList", onSelect: this.selectVote.bind(this) })))),
                             this.$render("i-vstack", { width: "100%", padding: { left: "1rem", right: "1rem" } },
                                 this.$render("i-button", { id: 'btnSubmitVote', class: 'btn-os', height: 'auto', caption: "Submit Vote", padding: { top: '0.75rem', bottom: '0.75rem', left: '1.5rem', right: '1.5rem' }, border: { radius: 5 }, font: { weight: 600 }, rightIcon: { spin: true, visible: false }, enabled: false, onClick: this.onSubmitVote.bind(this) })))),
-                    this.$render("i-modal", { id: "mdUpdateAddress", class: index_css_3.modalStyle, title: "Update Address", closeIcon: { name: 'times' }, height: 'auto', maxWidth: 640, closeOnBackdropClick: false },
-                        this.$render("i-panel", null,
+                    this.$render("i-modal", { id: "mdUpdateAddress", title: "Update Address", closeIcon: { name: 'times' }, height: 'auto', maxWidth: 640, padding: { top: "1rem", bottom: "1rem", left: "1.5rem", right: "1.5rem" }, border: { radius: '0.5rem' }, closeOnBackdropClick: false },
+                        this.$render("i-panel", { padding: { top: "1.5rem" } },
                             this.$render("i-vstack", { gap: 4 },
                                 this.$render("i-label", { caption: "Address: ", font: { size: '1rem', color: Theme.text.third, bold: true } }),
-                                this.$render("i-input", { id: "edtVotingAddress", class: index_css_3.inputStyle, height: 32, width: "100%", border: { radius: 6 }, font: { size: '1rem', color: Theme.text.third } })),
+                                this.$render("i-input", { id: "edtVotingAddress", height: 32, width: "100%", padding: { left: '0.5rem', right: '0.5rem' }, border: { radius: 6 }, font: { size: '1rem', color: Theme.text.third } })),
                             this.$render("i-hstack", { verticalAlignment: "center", horizontalAlignment: "center", gap: "10px", margin: { top: 20, bottom: 10 } },
                                 this.$render("i-button", { class: "btn-os", height: 'auto', padding: { top: '0.75rem', bottom: '0.75rem', left: '1.5rem', right: '1.5rem' }, border: { radius: 5 }, font: { weight: 600 }, caption: "Confirm", onClick: this.updateAddress.bind(this) })))),
                     this.$render("i-scom-tx-status-modal", { id: "txStatusModal" }),
