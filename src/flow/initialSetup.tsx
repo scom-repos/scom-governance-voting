@@ -12,7 +12,6 @@ import {
 import { isClientWalletConnected, State } from "../store/index";
 import ScomWalletModal from "@scom/scom-wallet-modal";
 import { Constants, IEventBusRegistry, Wallet } from "@ijstech/eth-wallet";
-import { flowInputStyle } from "../index.css";
 
 const Theme = Styles.Theme.ThemeVars;
 
@@ -148,9 +147,9 @@ export default class ScomGovernanceVotingFlowInitialSetup extends Module {
                 <i-hstack width="50%" verticalAlignment="center">
                     <i-input
                         id="edtVotingAddress"
-                        class={flowInputStyle}
                         height={32}
                         width="100%"
+                        padding={{ left: '0.5rem', right: '0.5rem' }}
                         border={{ radius: 6 }}
                         font={{ size: '1rem' }}
                     ></i-input>

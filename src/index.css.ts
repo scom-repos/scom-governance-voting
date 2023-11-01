@@ -70,32 +70,3 @@ export const comboBoxStyle = Styles.style({
         }
     }
 })
-
-export const inputStyle = Styles.style({
-    $nest: {
-        'input': {
-            color: Theme.text.third,
-            padding: '0.375rem 0.5rem'
-        }
-    }
-})
-
-export const modalStyle = Styles.style({
-  $nest: {
-    '.modal': {
-      padding: '1rem 1.5rem',
-      borderRadius: '0.5rem'
-    },
-    '.modal .i-modal_header': {
-      paddingBottom: '1.5rem'
-    }
-  }
-})
-
-export const flowInputStyle = Styles.style({
-    $nest: {
-        'input': {
-            padding: '0.375rem 0.5rem'
-        }
-    }
-})

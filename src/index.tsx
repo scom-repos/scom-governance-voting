@@ -23,7 +23,7 @@ import { IGovernanceVoting, IOption, ProposalType } from "./interface";
 import { isClientWalletConnected, State } from "./store/index";
 import Assets from './assets';
 import configData from './data.json';
-import customStyles, { inputStyle, modalStyle } from './index.css';
+import customStyles from './index.css';
 import { BigNumber, Constants, Wallet } from "@ijstech/eth-wallet";
 import { GovernanceVoteList } from './voteList';
 import { freezedStake, getLatestVotingAddress, getVotingResult, stakeOf, vote } from "./api";
@@ -942,21 +942,22 @@ export default class GovernanceVoting extends Module {
                     </i-panel>
                     <i-modal
                         id="mdUpdateAddress"
-                        class={modalStyle}
                         title="Update Address"
                         closeIcon={{ name: 'times' }}
                         height='auto'
                         maxWidth={640}
+                        padding={{ top: "1rem", bottom: "1rem", left: "1.5rem", right: "1.5rem" }}
+                        border={{ radius: '0.5rem' }}
                         closeOnBackdropClick={false}
                     >
-                        <i-panel>
+                        <i-panel padding={{ top: "1.5rem" }}>
                             <i-vstack gap={4}>
                                 <i-label caption="Address: " font={{ size: '1rem', color: Theme.text.third, bold: true }}></i-label>
                                 <i-input
                                     id="edtVotingAddress"
-                                    class={inputStyle}
                                     height={32}
                                     width="100%"
+                                    padding={{ left: '0.5rem', right: '0.5rem' }}
                                     border={{ radius: 6 }}
                                     font={{ size: '1rem', color: Theme.text.third }}
                                 ></i-input>
