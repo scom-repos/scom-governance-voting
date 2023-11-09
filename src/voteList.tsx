@@ -138,8 +138,8 @@ export class GovernanceVoteList extends Module {
       const modalElm = await Modal.create({
         minWidth: 300,
         showBackdrop: false,
-        height: 'auto',
-        popupPlacement: 'bottom'
+        popupPlacement: 'bottom',
+        visible: false
       })
       modalElm.classList.add("account-dropdown");
       modalElm.style.width = '100%';
