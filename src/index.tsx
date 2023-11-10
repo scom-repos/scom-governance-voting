@@ -648,18 +648,18 @@ export default class GovernanceVoting extends Module {
                     this.state.handleAddTransactions({
                         list: transactionsInfoArr
                     });
-                    if (this.state.handleJumpToStep) {
-                        this.state.handleJumpToStep({
-                            widgetName: 'scom-governance-execute-proposal',
-                            executionProperties: {
-                                votingAddress,
-                                fromToken: this._data.fromToken || '',
-                                toToken: this._data.toToken || '',
-                                customTokens: this._data.customTokens,
-                                isFlow: true
-                            }
-                        })
-                    }
+                }
+                if (this.state.handleJumpToStep) {
+                    this.state.handleJumpToStep({
+                        widgetName: 'scom-governance-execute-proposal',
+                        executionProperties: {
+                            votingAddress,
+                            fromToken: this._data.fromToken || '',
+                            toToken: this._data.toToken || '',
+                            customTokens: this._data.customTokens,
+                            isFlow: true
+                        }
+                    })
                 }
                 wallet.registerSendTxEvents({});
             };
