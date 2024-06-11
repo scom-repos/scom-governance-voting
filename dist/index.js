@@ -810,7 +810,8 @@ define("@scom/scom-governance-voting/formSchema.ts", ["require", "exports", "@sc
                         getData: (control) => {
                             return control.selectedNetwork?.chainId;
                         },
-                        setData: (control, value) => {
+                        setData: async (control, value) => {
+                            await control.ready();
                             control.setNetworkByChainId(value);
                         }
                     }
@@ -1182,7 +1183,7 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
         _getActions(category) {
             const formSchema = (0, formSchema_1.getFormSchema)();
             const actions = [];
-            if (category && category !== 'offers') {
+            if (category !== 'offers') {
                 actions.push({
                     name: 'Edit',
                     icon: 'edit',
@@ -1293,6 +1294,19 @@ define("@scom/scom-governance-voting", ["require", "exports", "@ijstech/componen
                         }
                         await this.setData(resultingData);
                     },
+                    getTag: this.getTag.bind(this),
+                    setTag: this.setTag.bind(this)
+                },
+                {
+                    name: 'Editor',
+                    target: 'Editor',
+                    getActions: (category) => {
+                        const actions = this._getActions(category);
+                        const editAction = actions.find(action => action.name === 'Edit');
+                        return editAction ? [editAction] : [];
+                    },
+                    getData: this.getData.bind(this),
+                    setData: this.setData.bind(this),
                     getTag: this.getTag.bind(this),
                     setTag: this.setTag.bind(this)
                 }

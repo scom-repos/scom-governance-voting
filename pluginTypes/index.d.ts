@@ -255,7 +255,7 @@ declare module "@scom/scom-governance-voting/formSchema.ts" {
             "#/properties/chainId": {
                 render: () => ScomNetworkPicker;
                 getData: (control: ScomNetworkPicker) => number;
-                setData: (control: ScomNetworkPicker, value: number) => void;
+                setData: (control: ScomNetworkPicker, value: number) => Promise<void>;
             };
         };
     };
@@ -431,6 +431,15 @@ declare module "@scom/scom-governance-voting" {
             setTag: any;
             getProxySelectors?: undefined;
             getActions?: undefined;
+        } | {
+            name: string;
+            target: string;
+            getActions: (category?: string) => any[];
+            getData: any;
+            setData: any;
+            getTag: any;
+            setTag: any;
+            getProxySelectors?: undefined;
         })[];
         private getData;
         private setData;

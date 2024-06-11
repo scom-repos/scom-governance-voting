@@ -247,7 +247,7 @@ export default class GovernanceVoting extends Module {
     private _getActions(category?: string) {
         const formSchema: any = getFormSchema();
         const actions: any[] = [];
-        if (category && category !== 'offers') {
+        if (category !== 'offers') {
             actions.push({
                 name: 'Edit',
                 icon: 'edit',
@@ -364,7 +364,20 @@ export default class GovernanceVoting extends Module {
                 },
                 getTag: this.getTag.bind(this),
                 setTag: this.setTag.bind(this)
-            }
+            },
+			{
+			  name: 'Editor',
+			  target: 'Editor',
+			  getActions: (category?: string) => {
+				const actions = this._getActions(category);
+				const editAction = actions.find(action => action.name === 'Edit');
+				return editAction ? [editAction] : [];
+			  },
+			  getData: this.getData.bind(this),
+			  setData: this.setData.bind(this),
+			  getTag: this.getTag.bind(this),
+			  setTag: this.setTag.bind(this)
+			}
         ];
     }
 
